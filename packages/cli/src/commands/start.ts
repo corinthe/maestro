@@ -1,6 +1,7 @@
 import { resolveAgentsPath, fileExists } from '@maestro/core';
 import { startWatcher } from '@maestro/watcher';
 import { startServer } from '@maestro/server';
+import { createDispatcher } from '@maestro/orchestrator';
 import type { Signal } from '@maestro/core';
 
 export async function startCommand(): Promise<void> {
@@ -14,15 +15,27 @@ export async function startCommand(): Promise<void> {
 
   console.log('[maestro] Starting orchestrator...\n');
 
-  // Start watcher and server in parallel
+  // Start server first so we have the WebSocket server for broadcasting
+  const { server, wss } = startServer(projectRoot);
+
+  // Create the signal dispatcher wired to orchestrator + runners
+  const dispatch = createDispatcher({ projectRoot, wss });
+
+  // Start watcher with the dispatcher as signal handler
   const watcher = startWatcher({
     projectRoot,
     onSignal: async (signal: Signal) => {
-      console.log(`[maestro] Signal received: ${signal.type}${signal.taskId ? ` (task: ${signal.taskId})` : ''}`);
+      console.log(
+        `[maestro] Signal received: ${signal.type}` +
+          (signal.taskId ? ` (task: ${signal.taskId})` : '')
+      );
+      try {
+        await dispatch(signal);
+      } catch (error) {
+        console.error(`[maestro] Error handling signal ${signal.type}:`, error);
+      }
     },
   });
-
-  const { server } = startServer(projectRoot);
 
   console.log('[maestro] Watcher and server are running.');
   console.log('[maestro] Dashboard: http://localhost:7842\n');

@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@maestro/core": "*",
+    "@maestro/orchestrator": "*",
+    "@maestro/runners": "*",
     "@maestro/watcher": "*",
     "@maestro/server": "*",
     "commander": "^12.1.0"
