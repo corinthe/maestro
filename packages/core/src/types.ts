@@ -21,6 +21,7 @@ export interface Agent {
   systemPrompt: string;
   runner: string;
   model?: string;
+  enabled?: boolean;
 }
 
 export interface AgentState {

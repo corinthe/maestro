@@ -13,7 +13,8 @@ export function scheduleNext(
 ): Assignment[] {
   const readyTasks = getReadyTasks(backlog);
   const busyAgents = new Set(inProgress.map((t) => t.agent));
-  const availableAgents = agents.filter((a) => !busyAgents.has(a.name));
+  const enabledAgents = agents.filter((a) => a.enabled !== false);
+  const availableAgents = enabledAgents.filter((a) => !busyAgents.has(a.name));
   const assignments: Assignment[] = [];
 
   for (const task of readyTasks) {
