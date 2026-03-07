@@ -119,12 +119,27 @@ After running `maestro init`, the CLI suggests lines to add to your `.gitignore`
 maestro start
 ```
 
-This launches two processes in parallel:
+This launches:
 
-- **Watcher** — monitors `.ai-agents/signals/` for filesystem events and triggers the orchestrator.
-- **Server** — serves the dashboard at `http://localhost:7842`.
+- **Server** — serves the dashboard at `http://localhost:7842` with WebSocket for real-time updates.
+- **Dispatcher** — routes incoming signals to the appropriate orchestrator handler.
+- **Watcher** — monitors `.ai-agents/signals/` for filesystem events and feeds them to the dispatcher.
 
-Press `Ctrl+C` to stop both processes gracefully.
+Press `Ctrl+C` to stop all processes gracefully.
+
+### Signal flow
+
+When `maestro start` is running, the system reacts to signal files dropped in `.ai-agents/signals/`:
+
+| Signal | What happens |
+|---|---|
+| `new-objective` | Planner decomposes the objective into tasks → scheduler assigns them to available agents → runners are launched |
+| `task-completed` | Consolidator archives the task and updates agent memory → scheduler picks the next ready tasks |
+| `task-blocked` | Task moved to `blocked/` → WebSocket notification sent to dashboard |
+| `agent-error` | Escalated to `human-queue/` → WebSocket notification sent to dashboard |
+| `wake` | Triggers a scheduling cycle (useful to resume after manual edits) |
+
+Each runner emits a signal on completion, creating a self-sustaining loop: **signal → dispatch → schedule → run → signal**.
 
 ### Prerequisites
 
