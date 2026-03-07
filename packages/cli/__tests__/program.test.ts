@@ -23,6 +23,21 @@ function buildProgram(): Command {
     .command('start')
     .description('Start the watcher and dashboard server');
 
+  program
+    .command('status')
+    .description('Show a quick summary of tasks, agents, and human-queue items');
+
+  program
+    .command('add <title>')
+    .description('Add a task to the backlog')
+    .option('-d, --depends <ids...>', 'Task IDs this task depends on');
+
+  program
+    .command('logs <agent>')
+    .description('Stream logs for a specific agent')
+    .option('-n, --lines <count>', 'Number of recent lines to show', '50')
+    .option('--no-follow', 'Print existing logs and exit without streaming');
+
   return program;
 }
 
@@ -49,6 +64,24 @@ describe('CLI program structure', () => {
     expect(commands).toContain('start');
   });
 
+  it('has a status command', () => {
+    const program = buildProgram();
+    const commands = program.commands.map((c) => c.name());
+    expect(commands).toContain('status');
+  });
+
+  it('has an add command', () => {
+    const program = buildProgram();
+    const commands = program.commands.map((c) => c.name());
+    expect(commands).toContain('add');
+  });
+
+  it('has a logs command', () => {
+    const program = buildProgram();
+    const commands = program.commands.map((c) => c.name());
+    expect(commands).toContain('logs');
+  });
+
   it('init command has the correct description', () => {
     const program = buildProgram();
     const initCmd = program.commands.find((c) => c.name() === 'init');
@@ -59,5 +92,38 @@ describe('CLI program structure', () => {
     const program = buildProgram();
     const startCmd = program.commands.find((c) => c.name() === 'start');
     expect(startCmd?.description()).toContain('watcher');
+  });
+
+  it('status command has the correct description', () => {
+    const program = buildProgram();
+    const statusCmd = program.commands.find((c) => c.name() === 'status');
+    expect(statusCmd?.description()).toContain('summary');
+  });
+
+  it('add command has the correct description', () => {
+    const program = buildProgram();
+    const addCmd = program.commands.find((c) => c.name() === 'add');
+    expect(addCmd?.description()).toContain('backlog');
+  });
+
+  it('logs command has the correct description', () => {
+    const program = buildProgram();
+    const logsCmd = program.commands.find((c) => c.name() === 'logs');
+    expect(logsCmd?.description()).toContain('logs');
+  });
+
+  it('logs command has --lines and --no-follow options', () => {
+    const program = buildProgram();
+    const logsCmd = program.commands.find((c) => c.name() === 'logs');
+    const opts = logsCmd?.options.map((o) => o.long);
+    expect(opts).toContain('--lines');
+    expect(opts).toContain('--no-follow');
+  });
+
+  it('add command has --depends option', () => {
+    const program = buildProgram();
+    const addCmd = program.commands.find((c) => c.name() === 'add');
+    const opts = addCmd?.options.map((o) => o.long);
+    expect(opts).toContain('--depends');
   });
 });
