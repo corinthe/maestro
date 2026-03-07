@@ -20,6 +20,7 @@ export interface AgentInfo {
   role: string;
   runner?: string;
   model?: string;
+  enabled?: boolean;
   status: 'idle' | 'working' | 'waiting';
   currentTaskId?: string;
   lastActiveAt?: string;

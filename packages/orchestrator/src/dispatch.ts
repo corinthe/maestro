@@ -329,7 +329,8 @@ async function loadInProgressTasks(projectRoot: string): Promise<Task[]> {
 
 async function loadAgents(projectRoot: string): Promise<Agent[]> {
   const agentsPath = resolveAgentsPath(projectRoot, 'config', 'agents.yaml');
-  return readYaml<Agent[]>(agentsPath).catch(() => []);
+  const raw = await readYaml<Agent[]>(agentsPath).catch(() => []);
+  return Array.isArray(raw) ? raw : [];
 }
 
 async function findTask(projectRoot: string, taskId?: string): Promise<Task | undefined> {

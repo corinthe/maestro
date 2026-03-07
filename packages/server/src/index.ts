@@ -25,6 +25,8 @@ interface AgentConfig {
   role: string;
   runner?: string;
   model?: string;
+  enabled?: boolean;
+  systemPrompt?: string;
 }
 
 interface FileLock {
@@ -235,14 +237,17 @@ export function startServer(projectRoot: string) {
       const agentsDir = resolveAgentsPath(projectRoot, 'agents');
       const result: (AgentConfig & AgentState)[] = [];
 
+      // Normalize: ensure it's an array (YAML may return object with wrapper key)
+      const normalizedDefs = Array.isArray(agentDefs) ? agentDefs : [];
+
       // Merge defined agents with their runtime state
-      for (const def of agentDefs) {
+      for (const def of normalizedDefs) {
         const statePath = `${agentsDir}/${def.name}/state.json`;
         const state = await readJson<AgentState>(statePath).catch((): AgentState => ({
           name: def.name,
           status: 'idle',
         }));
-        result.push({ ...def, ...state });
+        result.push({ ...def, ...state, enabled: def.enabled !== false });
       }
 
       // Include agents that have state files but aren't in config
@@ -250,7 +255,7 @@ export function startServer(projectRoot: string) {
         const entries = await fs.readdir(agentsDir, { withFileTypes: true });
         for (const entry of entries) {
           if (!entry.isDirectory()) continue;
-          if (agentDefs.some((a) => a.name === entry.name)) continue;
+          if (normalizedDefs.some((a) => a.name === entry.name)) continue;
           const statePath = `${agentsDir}/${entry.name}/state.json`;
           const state = await readJson<AgentState>(statePath).catch((): AgentState => ({
             name: entry.name,
@@ -263,6 +268,108 @@ export function startServer(projectRoot: string) {
       res.json(result);
     } catch {
       res.status(500).json({ error: 'Failed to load agents' });
+    }
+  });
+
+  // POST /api/agents — Create a new agent
+  app.post('/api/agents', async (req, res) => {
+    try {
+      const { name, role, runner, model, systemPrompt, enabled } = req.body as Record<string, unknown>;
+
+      if (!name || !role) {
+        res.status(400).json({ error: 'name and role are required' });
+        return;
+      }
+
+      const configPath = resolveAgentsPath(projectRoot, 'config', 'agents.yaml');
+      const agentDefs = await readYaml<AgentConfig[]>(configPath).catch((): AgentConfig[] => []);
+      const agents = Array.isArray(agentDefs) ? agentDefs : [];
+
+      if (agents.some((a) => a.name === String(name))) {
+        res.status(409).json({ error: `Agent "${name}" already exists` });
+        return;
+      }
+
+      const newAgent: AgentConfig = {
+        name: String(name),
+        role: String(role),
+        runner: String(runner || 'claude-code'),
+        model: model ? String(model) : undefined,
+        systemPrompt: systemPrompt ? String(systemPrompt) : undefined,
+        enabled: enabled !== false,
+      };
+
+      agents.push(newAgent);
+      await writeYaml(configPath, agents);
+
+      appendLog({ timestamp: new Date().toISOString(), agent: 'system', level: 'info', message: `Agent created: ${newAgent.name}` });
+      broadcast(wss, { type: 'agent-created', agent: newAgent });
+
+      res.status(201).json(newAgent);
+    } catch {
+      res.status(500).json({ error: 'Failed to create agent' });
+    }
+  });
+
+  // PATCH /api/agents/:name — Update an agent (toggle enabled, edit fields)
+  app.patch('/api/agents/:name', async (req, res) => {
+    try {
+      const { name } = req.params;
+      const updates = req.body as Partial<AgentConfig>;
+
+      const configPath = resolveAgentsPath(projectRoot, 'config', 'agents.yaml');
+      const agentDefs = await readYaml<AgentConfig[]>(configPath).catch((): AgentConfig[] => []);
+      const agents = Array.isArray(agentDefs) ? agentDefs : [];
+
+      const idx = agents.findIndex((a) => a.name === name);
+      if (idx === -1) {
+        res.status(404).json({ error: `Agent "${name}" not found` });
+        return;
+      }
+
+      // Apply updates (don't allow renaming via this endpoint)
+      if (updates.role !== undefined) agents[idx].role = updates.role;
+      if (updates.runner !== undefined) agents[idx].runner = updates.runner;
+      if (updates.model !== undefined) agents[idx].model = updates.model;
+      if (updates.systemPrompt !== undefined) agents[idx].systemPrompt = updates.systemPrompt;
+      if (updates.enabled !== undefined) agents[idx].enabled = updates.enabled;
+
+      await writeYaml(configPath, agents);
+
+      const action = updates.enabled === false ? 'disabled' : updates.enabled === true ? 'enabled' : 'updated';
+      appendLog({ timestamp: new Date().toISOString(), agent: 'system', level: 'info', message: `Agent ${action}: ${name}` });
+      broadcast(wss, { type: 'agent-updated', agent: agents[idx] });
+
+      res.json(agents[idx]);
+    } catch {
+      res.status(500).json({ error: 'Failed to update agent' });
+    }
+  });
+
+  // DELETE /api/agents/:name — Delete an agent
+  app.delete('/api/agents/:name', async (req, res) => {
+    try {
+      const { name } = req.params;
+
+      const configPath = resolveAgentsPath(projectRoot, 'config', 'agents.yaml');
+      const agentDefs = await readYaml<AgentConfig[]>(configPath).catch((): AgentConfig[] => []);
+      const agents = Array.isArray(agentDefs) ? agentDefs : [];
+
+      const idx = agents.findIndex((a) => a.name === name);
+      if (idx === -1) {
+        res.status(404).json({ error: `Agent "${name}" not found` });
+        return;
+      }
+
+      agents.splice(idx, 1);
+      await writeYaml(configPath, agents);
+
+      appendLog({ timestamp: new Date().toISOString(), agent: 'system', level: 'info', message: `Agent deleted: ${name}` });
+      broadcast(wss, { type: 'agent-deleted', name });
+
+      res.json({ deleted: name });
+    } catch {
+      res.status(500).json({ error: 'Failed to delete agent' });
     }
   });
 

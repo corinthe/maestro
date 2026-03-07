@@ -24,53 +24,52 @@ const AGENTS_YAML_CONTENT = `# agents.yaml — Agent definitions for Maestro
 #
 # Available runners: claude-code
 #
-# Uncomment and customize the agents you need for your project.
+# Set enabled: false to disable an agent without removing it.
 
-agents:
-  # --- Backend agent ---
-  # - name: backend
-  #   role: "Backend developer"
-  #   runner: claude-code
-  #   systemPrompt: |
-  #     You are a backend developer. You write clean, tested, production-ready
-  #     server-side code. Follow the project conventions strictly.
-  #     Focus on API endpoints, database models, and business logic.
+- name: backend
+  role: "Backend developer"
+  runner: claude-code
+  enabled: true
+  systemPrompt: |
+    You are a backend developer. You write clean, tested, production-ready
+    server-side code. Follow the project conventions strictly.
+    Focus on API endpoints, database models, and business logic.
 
-  # --- Frontend agent ---
-  # - name: frontend
-  #   role: "Frontend developer"
-  #   runner: claude-code
-  #   systemPrompt: |
-  #     You are a frontend developer. You build responsive, accessible UIs
-  #     using the project's frontend framework. Write component tests and
-  #     follow the established design system.
+- name: frontend
+  role: "Frontend developer"
+  runner: claude-code
+  enabled: true
+  systemPrompt: |
+    You are a frontend developer. You build responsive, accessible UIs
+    using the project's frontend framework. Write component tests and
+    follow the established design system.
 
-  # --- Security agent ---
-  # - name: security
-  #   role: "Security auditor"
-  #   runner: claude-code
-  #   systemPrompt: |
-  #     You are a security auditor. Review code for vulnerabilities (OWASP Top 10),
-  #     check authentication/authorization flows, and suggest hardening measures.
-  #     Never modify code directly — report findings as tasks.
+- name: security
+  role: "Security auditor"
+  runner: claude-code
+  enabled: true
+  systemPrompt: |
+    You are a security auditor. Review code for vulnerabilities (OWASP Top 10),
+    check authentication/authorization flows, and suggest hardening measures.
+    Never modify code directly — report findings as tasks.
 
-  # --- Testing agent ---
-  # - name: testing
-  #   role: "QA engineer"
-  #   runner: claude-code
-  #   systemPrompt: |
-  #     You are a QA engineer. Write comprehensive test suites: unit tests,
-  #     integration tests, and edge-case scenarios. Ensure code coverage
-  #     meets project standards.
+- name: testing
+  role: "QA engineer"
+  runner: claude-code
+  enabled: true
+  systemPrompt: |
+    You are a QA engineer. Write comprehensive test suites: unit tests,
+    integration tests, and edge-case scenarios. Ensure code coverage
+    meets project standards.
 
-  # --- Documentation agent ---
-  # - name: documentation
-  #   role: "Technical writer"
-  #   runner: claude-code
-  #   systemPrompt: |
-  #     You are a technical writer. Maintain API docs, architecture decision
-  #     records, and developer guides. Keep documentation in sync with code
-  #     changes. Write clearly and concisely.
+- name: documentation
+  role: "Technical writer"
+  runner: claude-code
+  enabled: true
+  systemPrompt: |
+    You are a technical writer. Maintain API docs, architecture decision
+    records, and developer guides. Keep documentation in sync with code
+    changes. Write clearly and concisely.
 `;
 
 function generateProjectYaml(answers: InitAnswers): Record<string, unknown> {

@@ -233,6 +233,33 @@ export default function App() {
     setStatus((s) => ({ ...s, paused: false }));
   };
 
+  const handleToggleAgent = async (name: string, enabled: boolean) => {
+    const r = await fetch(`/api/agents/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!r.ok) throw new Error('Failed');
+    setAgents((prev) => prev.map((a) => a.name === name ? { ...a, enabled } : a));
+  };
+
+  const handleCreateAgent = async (agent: { name: string; role: string; runner: string; systemPrompt: string }) => {
+    const r = await fetch('/api/agents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(agent),
+    });
+    if (!r.ok) throw new Error('Failed');
+    const newAgent = (await r.json()) as AgentInfo;
+    setAgents((prev) => [...prev, { ...newAgent, status: 'idle' as const }]);
+  };
+
+  const handleDeleteAgent = async (name: string) => {
+    const r = await fetch(`/api/agents/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error('Failed');
+    setAgents((prev) => prev.filter((a) => a.name !== name));
+  };
+
   const agentNames = agents.map((a) => a.name);
   const pendingQueue = humanQueue.filter((i) => !i.resolvedAt).length;
 
@@ -300,7 +327,15 @@ export default function App() {
               <KanbanBoard tasks={tasks} onMoveTask={handleMoveTask} />
             </div>
           )}
-          {activeTab === 'agents' && <AgentCards agents={agents} tasks={tasks} />}
+          {activeTab === 'agents' && (
+            <AgentCards
+              agents={agents}
+              tasks={tasks}
+              onToggleAgent={handleToggleAgent}
+              onCreateAgent={handleCreateAgent}
+              onDeleteAgent={handleDeleteAgent}
+            />
+          )}
           {activeTab === 'logs' && (
             <div className="h-full min-h-[500px] flex flex-col">
               <LogStream logs={logs} agents={agentNames} />
