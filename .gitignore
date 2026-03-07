@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Maestro runtime files
+.ai-agents/logs/
+.ai-agents/signals/
+.ai-agents/agents/*/current-context.md
+.ai-agents/tasks/in-progress/
+.ai-agents/tasks/done/

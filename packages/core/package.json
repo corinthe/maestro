@@ -1,0 +1,19 @@
+{
+  "name": "@maestro/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.0.0"
+  }
+}
