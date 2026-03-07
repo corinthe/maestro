@@ -42,6 +42,95 @@ maestro start
 # → Dashboard available at http://localhost:7842
 ```
 
+## Setup guide
+
+### 1. Install Maestro
+
+```bash
+npm install -g maestro-agents
+```
+
+Requires **Node.js 18+**.
+
+### 2. Initialize your project
+
+Navigate to your project root and run:
+
+```bash
+maestro init
+```
+
+The CLI will ask you three questions:
+
+| Question | Example | Used in |
+|---|---|---|
+| **Project name** | `my-app` | `project.yaml` |
+| **Tech stack** (comma-separated) | `TypeScript, React, PostgreSQL` | `project.yaml` |
+| **Main conventions** (comma-separated) | `ESLint, Prettier, conventional commits` | `project.yaml` |
+
+This creates the `.ai-agents/` directory with all required files:
+
+- `config/agents.yaml` — pre-filled with 5 commented agent templates (backend, frontend, security, testing, documentation). Uncomment and customize the ones you need.
+- `config/project.yaml` — your project context, generated from your answers.
+- `orchestrator/` — plan, task graph, and decisions log (empty placeholders).
+- `tasks/backlog.yaml` — empty task backlog, ready for objectives.
+- `agents/`, `signals/`, `logs/`, `human-queue/` — runtime directories.
+
+> If a `.ai-agents/` directory already exists, `maestro init` will ask before reinitializing and will preserve existing files.
+
+### 3. Configure your agents
+
+Edit `.ai-agents/config/agents.yaml` to define the agents you want. Each agent needs a name, role, runner, and system prompt:
+
+```yaml
+agents:
+  - name: backend
+    role: "Backend developer"
+    runner: claude-code
+    systemPrompt: |
+      You are a backend developer. You write clean, tested,
+      production-ready server-side code.
+
+  - name: testing
+    role: "QA engineer"
+    runner: claude-code
+    systemPrompt: |
+      You are a QA engineer. Write comprehensive test suites.
+```
+
+### 4. Update your `.gitignore`
+
+After running `maestro init`, the CLI suggests lines to add to your `.gitignore`. Runtime files (logs, signals, in-progress tasks) should not be versioned:
+
+```gitignore
+# Maestro runtime files
+.ai-agents/logs/
+.ai-agents/signals/
+.ai-agents/agents/*/current-context.md
+.ai-agents/tasks/in-progress/
+.ai-agents/tasks/done/
+```
+
+**Recommended to version:** `agents.yaml`, `project.yaml`, `tasks/backlog.yaml`, and agent `memory.md` files.
+
+### 5. Start Maestro
+
+```bash
+maestro start
+```
+
+This launches two processes in parallel:
+
+- **Watcher** — monitors `.ai-agents/signals/` for filesystem events and triggers the orchestrator.
+- **Server** — serves the dashboard at `http://localhost:7842`.
+
+Press `Ctrl+C` to stop both processes gracefully.
+
+### Prerequisites
+
+- **Node.js 18+**
+- **Claude Code CLI** installed and authenticated (used as the default agent runner in v1).
+
 ## Dashboard
 
 The local web dashboard gives you a live view of:
