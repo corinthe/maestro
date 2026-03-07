@@ -1,4 +1,4 @@
-import { resolveAgentsPath, fileExists } from '@maestro/core';
+import { resolveAgentsPath, fileExists, createLogger } from '@maestro/core';
 import { startWatcher } from '@maestro/watcher';
 import { startServer } from '@maestro/server';
 import { createDispatcher } from '@maestro/orchestrator';
@@ -13,7 +13,9 @@ export async function startCommand(): Promise<void> {
     process.exit(1);
   }
 
-  console.log('[maestro] Starting orchestrator...\n');
+  const log = createLogger({ projectRoot, component: 'maestro', level: 'info' });
+
+  log.info('Starting orchestrator...');
 
   // Start server first so we have the WebSocket server for broadcasting
   const { server, wss } = startServer(projectRoot);
@@ -25,28 +27,25 @@ export async function startCommand(): Promise<void> {
   const watcher = startWatcher({
     projectRoot,
     onSignal: async (signal: Signal) => {
-      console.log(
-        `[maestro] Signal received: ${signal.type}` +
-          (signal.taskId ? ` (task: ${signal.taskId})` : '')
-      );
+      log.info({ signalType: signal.type, taskId: signal.taskId }, `Signal received: ${signal.type}`);
       try {
         await dispatch(signal);
       } catch (error) {
-        console.error(`[maestro] Error handling signal ${signal.type}:`, error);
+        log.error({ err: error, signalType: signal.type }, `Error handling signal ${signal.type}`);
       }
     },
   });
 
-  console.log('[maestro] Watcher and server are running.');
-  console.log('[maestro] Dashboard: http://localhost:7842\n');
+  log.info('Watcher and server are running.');
+  log.info('Dashboard: http://localhost:7842');
   console.log('Press Ctrl+C to stop.\n');
 
   // Graceful shutdown
   const shutdown = () => {
-    console.log('\n[maestro] Shutting down...');
+    log.info('Shutting down...');
     watcher.close();
     server.close(() => {
-      console.log('[maestro] Stopped.');
+      log.info('Stopped.');
       process.exit(0);
     });
   };
