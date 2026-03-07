@@ -158,7 +158,7 @@ describe('init command', () => {
 
     const backlogPath = path.join(tmpDir, '.ai-agents', 'tasks', 'backlog.yaml');
     const content = await fs.readFile(backlogPath, 'utf-8');
-    expect(content).toContain('tasks');
+    expect(content.trim()).toBe('[]');
   });
 
   it('does not overwrite existing files when reinitializing', async () => {

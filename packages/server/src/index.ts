@@ -87,13 +87,21 @@ export function startServer(projectRoot: string) {
     res.json({ paused });
   });
 
+  // Helper: read backlog.yaml and normalise legacy `{ tasks: [] }` format to a plain array.
+  async function loadBacklog(): Promise<Task[]> {
+    const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
+    const raw = await readYaml<Task[] | { tasks: Task[] }>(backlogPath).catch((): Task[] => []);
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object' && 'tasks' in raw && Array.isArray(raw.tasks)) return raw.tasks;
+    return [];
+  }
+
   // ── Tasks ──────────────────────────────────────────────────────────────────
   app.get('/api/tasks', async (_req, res) => {
     try {
       const tasks: Task[] = [];
 
-      const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
-      const backlog = await readYaml<Task[]>(backlogPath).catch((): Task[] => []);
+      const backlog = await loadBacklog();
       tasks.push(...backlog);
 
       for (const status of ['in-progress', 'done', 'blocked'] as const) {
@@ -137,7 +145,7 @@ export function startServer(projectRoot: string) {
       };
 
       const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
-      const backlog = await readYaml<Task[]>(backlogPath).catch((): Task[] => []);
+      const backlog = await loadBacklog();
       backlog.push(task);
       await writeYaml(backlogPath, backlog);
 
@@ -145,8 +153,10 @@ export function startServer(projectRoot: string) {
       broadcast(wss, { type: 'task-created', task });
 
       res.status(201).json(task);
-    } catch {
-      res.status(500).json({ error: 'Failed to create task' });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('POST /api/tasks failed:', detail);
+      res.status(500).json({ error: `Unable to save task to backlog: ${detail}` });
     }
   });
 
@@ -168,7 +178,7 @@ export function startServer(projectRoot: string) {
 
       // Check backlog
       const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
-      const backlog = await readYaml<Task[]>(backlogPath).catch((): Task[] => []);
+      const backlog = await loadBacklog();
       const backlogIdx = backlog.findIndex((t) => t.id === id);
 
       if (backlogIdx !== -1) {

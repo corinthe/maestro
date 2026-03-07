@@ -209,7 +209,10 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(task),
     });
-    if (!r.ok) throw new Error('Failed');
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error((body as { error?: string }).error || 'Unexpected server error');
+    }
     const newTask = (await r.json()) as Task;
     setTasks((prev) => [...prev, newTask]);
   };

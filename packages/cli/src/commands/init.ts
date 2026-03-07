@@ -175,7 +175,7 @@ export async function initCommand(): Promise<void> {
     // Create empty backlog
     const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
     if (!(await fileExists(backlogPath))) {
-      await writeYaml(backlogPath, { tasks: [] });
+      await writeYaml(backlogPath, [] as unknown[]);
       console.log('  Created tasks/backlog.yaml');
     }
 
