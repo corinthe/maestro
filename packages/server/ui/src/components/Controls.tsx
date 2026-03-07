@@ -43,8 +43,9 @@ export default function Controls({ paused, onPause, onResume, onAddTask, onNewOb
       setTaskSuccess('Task added to backlog!');
       setTaskForm({ title: '', description: '', criteria: '' });
       setTimeout(() => setTaskSuccess(''), 3000);
-    } catch {
-      setTaskError('Failed to add task.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unexpected error';
+      setTaskError(`Unable to add task: ${message}`);
     } finally {
       setTaskLoading(false);
     }
