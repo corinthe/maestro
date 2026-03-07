@@ -7,8 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "clean": "npm run clean --workspaces",
+    "build": "tsc --build tsconfig.build.json",
+    "clean": "tsc --build tsconfig.build.json --clean",
     "dev": "npm run dev --workspace=packages/server",
     "maestro": "node packages/cli/dist/index.js"
   },
