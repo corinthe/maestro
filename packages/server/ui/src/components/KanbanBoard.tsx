@@ -4,6 +4,7 @@ import type { Task, TaskStatus } from '../types';
 interface Props {
   tasks: Task[];
   onMoveTask?: (taskId: string, newStatus: TaskStatus) => void;
+  onAddTask?: (task: { title: string; description: string; acceptanceCriteria: string[] }) => Promise<void>;
 }
 
 const COLUMNS: { status: TaskStatus; label: string; color: string; dot: string }[] = [
@@ -45,7 +46,80 @@ function TaskCard({ task, onDragStart }: { task: Task; onDragStart: (id: string)
   );
 }
 
-export default function KanbanBoard({ tasks, onMoveTask }: Props) {
+function QuickAddTask({ onAddTask }: { onAddTask: (task: { title: string; description: string; acceptanceCriteria: string[] }) => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !description.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      await onAddTask({ title: title.trim(), description: description.trim(), acceptanceCriteria: [] });
+      setTitle('');
+      setDescription('');
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add task');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full py-2 text-xs text-slate-500 hover:text-slate-300 hover:bg-slate-800/60 rounded-lg transition-colors"
+      >
+        + Add task
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-slate-800 border border-slate-600 rounded-lg p-3 space-y-2">
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Task title"
+        autoFocus
+        className="w-full bg-slate-900/70 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      />
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Description"
+        rows={2}
+        className="w-full bg-slate-900/70 border border-slate-600 rounded px-2 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+      />
+      {error && <div className="text-xs text-red-400">{error}</div>}
+      <div className="flex gap-2 justify-end">
+        <button
+          type="button"
+          onClick={() => { setOpen(false); setTitle(''); setDescription(''); setError(''); }}
+          className="px-3 py-1 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={!title.trim() || !description.trim() || loading}
+          className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs font-medium rounded transition-colors"
+        >
+          {loading ? 'Adding…' : 'Add'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export default function KanbanBoard({ tasks, onMoveTask, onAddTask }: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<TaskStatus | null>(null);
 
@@ -88,16 +162,18 @@ export default function KanbanBoard({ tasks, onMoveTask }: Props) {
 
           {/* Cards */}
           <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0">
-            {grouped[col.status].length === 0 ? (
+            {grouped[col.status].length === 0 && !(col.status === 'backlog' && onAddTask) && (
               <div className="text-xs text-slate-600 text-center py-8 italic">Empty</div>
-            ) : (
-              grouped[col.status].map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onDragStart={setDraggingId}
-                />
-              ))
+            )}
+            {grouped[col.status].map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onDragStart={setDraggingId}
+              />
+            ))}
+            {col.status === 'backlog' && onAddTask && (
+              <QuickAddTask onAddTask={onAddTask} />
             )}
           </div>
         </div>

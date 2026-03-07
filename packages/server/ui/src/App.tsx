@@ -327,7 +327,7 @@ export default function App() {
         <div className="h-full overflow-y-auto">
           {activeTab === 'kanban' && (
             <div className="h-full min-h-[500px]">
-              <KanbanBoard tasks={tasks} onMoveTask={handleMoveTask} />
+              <KanbanBoard tasks={tasks} onMoveTask={handleMoveTask} onAddTask={handleAddTask} />
             </div>
           )}
           {activeTab === 'agents' && (
