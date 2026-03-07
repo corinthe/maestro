@@ -41,13 +41,28 @@ export async function startCommand(): Promise<void> {
   console.log('Press Ctrl+C to stop.\n');
 
   // Graceful shutdown
+  let shuttingDown = false;
   const shutdown = () => {
+    if (shuttingDown) {
+      log.info('Forced exit.');
+      process.exit(1);
+    }
+    shuttingDown = true;
     log.info('Shutting down...');
     watcher.close();
+    // Close all WebSocket connections so the server can actually close
+    for (const client of wss.clients) {
+      client.close();
+    }
     server.close(() => {
       log.info('Stopped.');
       process.exit(0);
     });
+    // Force exit if server hasn't closed within 3 seconds
+    setTimeout(() => {
+      log.warn('Shutdown timed out, forcing exit.');
+      process.exit(1);
+    }, 3000).unref();
   };
 
   process.on('SIGINT', shutdown);
