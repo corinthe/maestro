@@ -7,9 +7,9 @@ interface Props {
 }
 
 const TYPE_CONFIG = {
-  conflict: { label: 'Conflict',  color: 'bg-red-900/50 text-red-300 border-red-700/50' },
-  decision: { label: 'Decision',  color: 'bg-amber-900/50 text-amber-300 border-amber-700/50' },
-  error:    { label: 'Error',     color: 'bg-orange-900/50 text-orange-300 border-orange-700/50' },
+  conflict: { label: 'Conflict',  color: 'bg-red-950/50 text-red-400 border-red-900/50' },
+  decision: { label: 'Decision',  color: 'bg-amber-950/50 text-amber-400 border-amber-900/50' },
+  error:    { label: 'Error',     color: 'bg-orange-950/50 text-orange-400 border-orange-900/50' },
 };
 
 function QueueItemCard({
@@ -41,19 +41,19 @@ function QueueItemCard({
   };
 
   return (
-    <div className={`border rounded-xl overflow-hidden ${isResolved ? 'opacity-60' : ''} ${cfg.color}`}>
+    <div className={`border rounded-xl overflow-hidden transition-opacity duration-200 ${isResolved ? 'opacity-50' : ''} ${cfg.color} animate-fade-in`}>
       {/* Header */}
       <div className="flex items-start gap-3 px-4 py-3">
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${cfg.color} whitespace-nowrap`}>
           {cfg.label}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-slate-100">{item.title}</div>
-          <div className="text-xs text-slate-400 mt-0.5">
+          <div className="font-semibold text-stone-100">{item.title}</div>
+          <div className="text-xs text-stone-500 mt-0.5">
             {new Date(item.createdAt).toLocaleString()}
             {isResolved && item.resolvedAt && (
-              <span className="ml-2 text-emerald-400">
-                ✓ Resolved {new Date(item.resolvedAt).toLocaleTimeString()}
+              <span className="ml-2 text-emerald-500">
+                Resolved {new Date(item.resolvedAt).toLocaleTimeString()}
               </span>
             )}
           </div>
@@ -62,39 +62,39 @@ function QueueItemCard({
 
       {/* Body */}
       <div className="px-4 pb-3 space-y-3">
-        <p className="text-sm text-slate-300 leading-relaxed">{item.description}</p>
+        <p className="text-sm text-stone-300 leading-relaxed">{item.description}</p>
 
         {item.context && Object.keys(item.context).length > 0 && (
           <details className="text-xs">
-            <summary className="cursor-pointer text-slate-400 hover:text-slate-200">Context</summary>
-            <pre className="mt-2 bg-slate-900/60 rounded-lg p-3 text-slate-300 overflow-x-auto whitespace-pre-wrap">
+            <summary className="cursor-pointer text-stone-500 hover:text-stone-300 transition-colors">Context</summary>
+            <pre className="mt-2 bg-stone-900/60 rounded-lg p-3 text-stone-400 overflow-x-auto whitespace-pre-wrap">
               {JSON.stringify(item.context, null, 2)}
             </pre>
           </details>
         )}
 
         {isResolved ? (
-          <div className="bg-emerald-900/30 border border-emerald-700/40 rounded-lg px-3 py-2">
-            <div className="text-xs text-emerald-400 font-medium mb-0.5">Resolution</div>
-            <div className="text-sm text-slate-200">{item.resolution}</div>
+          <div className="bg-emerald-950/30 border border-emerald-900/40 rounded-lg px-3 py-2">
+            <div className="text-xs text-emerald-500 font-medium mb-0.5">Resolution</div>
+            <div className="text-sm text-stone-200">{item.resolution}</div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-2">
             <textarea
               value={resolution}
               onChange={(e) => setResolution(e.target.value)}
-              placeholder="Type your resolution or decision here…"
+              placeholder="Type your resolution or decision here..."
               rows={3}
-              className="w-full bg-slate-900/70 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full bg-stone-900/70 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50 focus:border-amber-700/50 resize-none transition-all duration-150"
             />
-            {error && <div className="text-xs text-red-400">{error}</div>}
+            {error && <div className="text-xs text-red-400 animate-fade-in">{error}</div>}
             <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={!resolution.trim() || submitting}
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
+                className="px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-500 text-white text-sm font-medium rounded-lg transition-all duration-150"
               >
-                {submitting ? 'Submitting…' : 'Submit resolution'}
+                {submitting ? 'Submitting...' : 'Submit resolution'}
               </button>
             </div>
           </form>
@@ -110,8 +110,8 @@ export default function HumanQueue({ items, onResolve }: Props) {
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-slate-500">
-        <svg className="w-10 h-10 mb-2 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="flex flex-col items-center justify-center h-48 text-stone-600">
+        <svg className="w-10 h-10 mb-2 text-stone-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -125,8 +125,8 @@ export default function HumanQueue({ items, onResolve }: Props) {
       {pending.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <h3 className="text-sm font-semibold text-slate-200">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse-soft" />
+            <h3 className="text-sm font-semibold text-stone-300">
               Needs attention ({pending.length})
             </h3>
           </div>
@@ -138,7 +138,7 @@ export default function HumanQueue({ items, onResolve }: Props) {
 
       {resolved.length > 0 && (
         <details>
-          <summary className="cursor-pointer text-sm text-slate-400 hover:text-slate-200 mb-3">
+          <summary className="cursor-pointer text-sm text-stone-500 hover:text-stone-300 mb-3 transition-colors">
             Resolved ({resolved.length})
           </summary>
           <div className="space-y-3 mt-3">

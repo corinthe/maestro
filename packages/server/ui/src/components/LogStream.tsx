@@ -7,17 +7,17 @@ interface Props {
 }
 
 const LEVEL_STYLES: Record<string, string> = {
-  info:  'text-slate-300',
-  debug: 'text-slate-500',
+  info:  'text-stone-300',
+  debug: 'text-stone-600',
   warn:  'text-amber-400',
   error: 'text-red-400',
 };
 
 const LEVEL_BADGE: Record<string, string> = {
-  info:  'bg-slate-700 text-slate-300',
-  debug: 'bg-slate-800 text-slate-500',
-  warn:  'bg-amber-900/60 text-amber-300',
-  error: 'bg-red-900/60 text-red-300',
+  info:  'bg-stone-800 text-stone-400',
+  debug: 'bg-stone-900 text-stone-600',
+  warn:  'bg-amber-950/60 text-amber-400',
+  error: 'bg-red-950/60 text-red-400',
 };
 
 export default function LogStream({ logs, agents }: Props) {
@@ -51,11 +51,11 @@ export default function LogStream({ logs, agents }: Props) {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400">Agent</label>
+          <label className="text-xs text-stone-500">Agent</label>
           <select
             value={selectedAgent}
             onChange={(e) => setSelectedAgent(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-sm text-stone-300 focus:outline-none focus:ring-1 focus:ring-amber-600/50 transition-all duration-150"
           >
             <option value="all">All agents</option>
             {agents.map((a) => (
@@ -66,11 +66,11 @@ export default function LogStream({ logs, agents }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs text-slate-400">Level</label>
+          <label className="text-xs text-stone-500">Level</label>
           <select
             value={selectedLevel}
             onChange={(e) => setSelectedLevel(e.target.value)}
-            className="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="bg-stone-800 border border-stone-700 rounded-lg px-2 py-1 text-sm text-stone-300 focus:outline-none focus:ring-1 focus:ring-amber-600/50 transition-all duration-150"
           >
             <option value="all">All levels</option>
             <option value="debug">debug</option>
@@ -81,13 +81,13 @@ export default function LogStream({ logs, agents }: Props) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-slate-500">{filtered.length} entries</span>
-          <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
+          <span className="text-xs text-stone-600">{filtered.length} entries</span>
+          <label className="flex items-center gap-1.5 text-xs text-stone-500 cursor-pointer">
             <input
               type="checkbox"
               checked={autoScroll}
               onChange={(e) => setAutoScroll(e.target.checked)}
-              className="accent-blue-500"
+              className="accent-amber-600"
             />
             Auto-scroll
           </label>
@@ -98,10 +98,10 @@ export default function LogStream({ logs, agents }: Props) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto bg-slate-900 rounded-xl border border-slate-700 font-mono text-xs min-h-0"
+        className="flex-1 overflow-y-auto bg-stone-900 rounded-xl border border-stone-800 font-mono text-xs min-h-0"
       >
         {filtered.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-600 italic">
+          <div className="flex items-center justify-center h-full text-stone-700 italic">
             No log entries
           </div>
         ) : (
@@ -110,9 +110,9 @@ export default function LogStream({ logs, agents }: Props) {
               {filtered.map((log, i) => (
                 <tr
                   key={i}
-                  className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                  className="border-b border-stone-800/50 hover:bg-stone-800/30 transition-colors"
                 >
-                  <td className="px-3 py-1 text-slate-600 whitespace-nowrap w-36">
+                  <td className="px-3 py-1 text-stone-600 whitespace-nowrap w-36">
                     {new Date(log.timestamp).toLocaleTimeString('en', { hour12: false })}
                   </td>
                   <td className="px-2 py-1 w-24">
@@ -120,7 +120,7 @@ export default function LogStream({ logs, agents }: Props) {
                       {log.level}
                     </span>
                   </td>
-                  <td className="px-2 py-1 w-28 text-blue-400 truncate">
+                  <td className="px-2 py-1 w-28 text-amber-500/80 truncate">
                     {log.agent !== 'system' ? `@${log.agent}` : 'system'}
                   </td>
                   <td className={`px-2 py-1 ${LEVEL_STYLES[log.level] ?? ''} break-all`}>
