@@ -152,6 +152,13 @@ export function startServer(projectRoot: string) {
       appendLog({ timestamp: new Date().toISOString(), agent: 'system', level: 'info', message: `Task created: ${task.title} (${task.id})` });
       broadcast(wss, { type: 'task-created', task });
 
+      // Emit a wake signal so the orchestrator picks up the new backlog task
+      await emitSignal(projectRoot, {
+        type: 'wake',
+        summary: `New task created: ${task.id}`,
+        timestamp: new Date().toISOString(),
+      });
+
       res.status(201).json(task);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
