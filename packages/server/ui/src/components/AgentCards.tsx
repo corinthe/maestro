@@ -12,21 +12,21 @@ interface Props {
 const STATUS_CONFIG = {
   idle: {
     label: 'Idle',
-    dot: 'bg-slate-400',
-    badge: 'bg-slate-700 text-slate-300',
-    ring: 'ring-slate-600',
+    dot: 'bg-stone-500',
+    badge: 'bg-stone-800 text-stone-400',
+    ring: 'ring-stone-700/50',
   },
   working: {
     label: 'Working',
-    dot: 'bg-blue-400 animate-pulse',
-    badge: 'bg-blue-900/60 text-blue-300',
-    ring: 'ring-blue-500/50',
+    dot: 'bg-amber-500 animate-pulse-soft',
+    badge: 'bg-amber-950/60 text-amber-400',
+    ring: 'ring-amber-700/30',
   },
   waiting: {
     label: 'Waiting',
-    dot: 'bg-amber-400',
-    badge: 'bg-amber-900/60 text-amber-300',
-    ring: 'ring-amber-500/50',
+    dot: 'bg-orange-400',
+    badge: 'bg-orange-950/60 text-orange-400',
+    ring: 'ring-orange-700/30',
   },
 };
 
@@ -68,14 +68,14 @@ function AgentCard({
 
   return (
     <div
-      className={`bg-slate-800/80 border border-slate-700 rounded-xl p-4 ring-1 ${cfg.ring} transition-all ${
+      className={`bg-stone-800/80 border border-stone-700/60 rounded-xl p-4 ring-1 ${cfg.ring} transition-all duration-200 hover:border-stone-600 ${
         !enabled ? 'opacity-50' : ''
       }`}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-slate-100 text-base">{agent.name}</div>
-          <div className="text-xs text-slate-400 mt-0.5">{agent.role || 'Unknown role'}</div>
+          <div className="font-semibold text-stone-100 text-base">{agent.name}</div>
+          <div className="text-xs text-stone-500 mt-0.5">{agent.role || 'Unknown role'}</div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {enabled && (
@@ -87,7 +87,7 @@ function AgentCard({
             </span>
           )}
           {!enabled && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-500">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-stone-800 text-stone-600">
               Disabled
             </span>
           )}
@@ -95,23 +95,23 @@ function AgentCard({
       </div>
 
       {agent.runner && (
-        <div className="text-xs text-slate-500 mb-3">
-          Runner: <span className="text-slate-400">{agent.runner}</span>
-          {agent.model && <span className="ml-2 text-slate-500">{agent.model}</span>}
+        <div className="text-xs text-stone-600 mb-3">
+          Runner: <span className="text-stone-400">{agent.runner}</span>
+          {agent.model && <span className="ml-2 text-stone-500">{agent.model}</span>}
         </div>
       )}
 
       {enabled && currentTask ? (
-        <div className="bg-slate-900/60 rounded-lg p-3 border border-slate-700/50">
-          <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Current task</div>
-          <div className="text-sm text-slate-200 leading-snug">{currentTask.title}</div>
-          <div className="text-xs text-slate-500 mt-1 font-mono">{currentTask.id}</div>
+        <div className="bg-stone-900/60 rounded-lg p-3 border border-stone-700/40">
+          <div className="text-xs text-stone-500 mb-1 font-medium uppercase tracking-wide">Current task</div>
+          <div className="text-sm text-stone-200 leading-snug">{currentTask.title}</div>
+          <div className="text-xs text-stone-600 mt-1 font-mono">{currentTask.id}</div>
           {currentTask.filesLocked && currentTask.filesLocked.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {currentTask.filesLocked.map((f) => (
                 <span
                   key={f}
-                  className="text-xs bg-amber-900/40 text-amber-400 rounded px-1.5 py-0.5 font-mono truncate max-w-[150px]"
+                  className="text-xs bg-amber-950/40 text-amber-400/80 rounded px-1.5 py-0.5 font-mono truncate max-w-[150px]"
                 >
                   {f}
                 </span>
@@ -120,27 +120,27 @@ function AgentCard({
           )}
         </div>
       ) : enabled ? (
-        <div className="text-xs text-slate-600 italic">No active task</div>
+        <div className="text-xs text-stone-600 italic">No active task</div>
       ) : null}
 
       {agent.lastActiveAt && (
-        <div className="text-xs text-slate-600 mt-3">
+        <div className="text-xs text-stone-600 mt-3">
           Last active: {new Date(agent.lastActiveAt).toLocaleTimeString()}
         </div>
       )}
 
       {/* Controls: toggle + delete */}
-      <div className="mt-3 pt-3 border-t border-slate-700/50 flex items-center justify-between">
+      <div className="mt-3 pt-3 border-t border-stone-700/40 flex items-center justify-between">
         <button
           onClick={handleToggle}
           disabled={toggling}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-            enabled ? 'bg-emerald-600' : 'bg-slate-600'
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+            enabled ? 'bg-emerald-700' : 'bg-stone-700'
           } disabled:opacity-50`}
           title={enabled ? 'Disable agent' : 'Enable agent'}
         >
           <span
-            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform duration-200 ${
               enabled ? 'translate-x-4' : 'translate-x-0.5'
             }`}
           />
@@ -149,13 +149,13 @@ function AgentCard({
         {!showConfirmDelete ? (
           <button
             onClick={() => setShowConfirmDelete(true)}
-            className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+            className="text-xs text-stone-600 hover:text-red-400 transition-colors"
             title="Delete agent"
           >
             Delete
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 animate-fade-in">
             <button
               onClick={handleDelete}
               disabled={deleting}
@@ -165,7 +165,7 @@ function AgentCard({
             </button>
             <button
               onClick={() => setShowConfirmDelete(false)}
-              className="text-xs text-slate-500 hover:text-slate-300"
+              className="text-xs text-stone-500 hover:text-stone-300"
             >
               Cancel
             </button>
@@ -207,7 +207,7 @@ function CreateAgentForm({ onCreate }: { onCreate: Props['onCreateAgent'] }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full bg-slate-800/40 border border-dashed border-slate-600 rounded-xl p-4 text-sm text-slate-400 hover:text-slate-200 hover:border-slate-500 transition-colors"
+        className="w-full bg-stone-800/40 border border-dashed border-stone-700 rounded-xl p-4 text-sm text-stone-500 hover:text-stone-300 hover:border-stone-600 transition-all duration-150"
       >
         + Create new agent
       </button>
@@ -215,48 +215,48 @@ function CreateAgentForm({ onCreate }: { onCreate: Props['onCreateAgent'] }) {
   }
 
   return (
-    <div className="bg-slate-800/80 border border-slate-600 rounded-xl p-4">
-      <h4 className="text-sm font-semibold text-slate-100 mb-3">New Agent</h4>
+    <div className="bg-stone-800/80 border border-stone-700 rounded-xl p-4 animate-scale-in">
+      <h4 className="text-sm font-semibold text-stone-100 mb-3">New Agent</h4>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Name *</label>
+            <label className="block text-xs text-stone-500 mb-1">Name *</label>
             <input
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="e.g. devops"
-              className="w-full bg-slate-900/70 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-stone-900/70 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-100 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50 focus:border-amber-700/50 transition-all duration-150"
             />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Role *</label>
+            <label className="block text-xs text-stone-500 mb-1">Role *</label>
             <input
               type="text"
               value={form.role}
               onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
               placeholder="e.g. DevOps engineer"
-              className="w-full bg-slate-900/70 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full bg-stone-900/70 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-100 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50 focus:border-amber-700/50 transition-all duration-150"
             />
           </div>
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Runner</label>
+          <label className="block text-xs text-stone-500 mb-1">Runner</label>
           <input
             type="text"
             value={form.runner}
             onChange={(e) => setForm((f) => ({ ...f, runner: e.target.value }))}
-            className="w-full bg-slate-900/70 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full bg-stone-900/70 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-100 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50 focus:border-amber-700/50 transition-all duration-150"
           />
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">System prompt</label>
+          <label className="block text-xs text-stone-500 mb-1">System prompt</label>
           <textarea
             value={form.systemPrompt}
             onChange={(e) => setForm((f) => ({ ...f, systemPrompt: e.target.value }))}
             placeholder="Describe the agent's role and behavior..."
             rows={3}
-            className="w-full bg-slate-900/70 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+            className="w-full bg-stone-900/70 border border-stone-700 rounded-lg px-3 py-1.5 text-sm text-stone-100 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50 focus:border-amber-700/50 resize-none transition-all duration-150"
           />
         </div>
         {error && <div className="text-xs text-red-400">{error}</div>}
@@ -267,14 +267,14 @@ function CreateAgentForm({ onCreate }: { onCreate: Props['onCreateAgent'] }) {
               setOpen(false);
               setError('');
             }}
-            className="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+            className="px-3 py-1.5 text-sm text-stone-500 hover:text-stone-200 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!form.name.trim() || !form.role.trim() || loading}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors"
+            className="px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-500 text-white text-sm font-medium rounded-lg transition-all duration-150"
           >
             {loading ? 'Creating...' : 'Create agent'}
           </button>
@@ -288,7 +288,7 @@ export default function AgentCards({ agents, tasks, onToggleAgent, onCreateAgent
   return (
     <div className="space-y-4">
       {agents.length === 0 && (
-        <div className="flex items-center justify-center h-32 text-slate-500 italic">
+        <div className="flex items-center justify-center h-32 text-stone-600 italic">
           No agents configured yet. Create one below.
         </div>
       )}
