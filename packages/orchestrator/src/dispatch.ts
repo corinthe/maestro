@@ -10,6 +10,7 @@ import { decomposeObjective } from './planner.js';
 import { scheduleNext } from './scheduler.js';
 import { consolidateTask } from './consolidator.js';
 import { buildCurrentContext } from './context-builder.js';
+import { assignPlannerAgent } from './plan-runner.js';
 import { createRunner } from '@maestro/runners';
 import type { WebSocketServer } from 'ws';
 
@@ -43,6 +44,15 @@ export function createDispatcher(deps: DispatchDeps) {
         break;
       case 'agent-error':
         await handleAgentError(projectRoot, wss, signal);
+        break;
+      case 'plan-ready':
+        await handlePlanReady(projectRoot, wss, signal);
+        break;
+      case 'plan-approved':
+        await handlePlanApproved(projectRoot, wss, signal);
+        break;
+      case 'plan-revision-requested':
+        await handlePlanRevisionRequested(projectRoot, wss, signal);
         break;
       case 'wake':
         await scheduleAndRun(projectRoot, wss);
@@ -200,6 +210,86 @@ async function handleAgentError(
 }
 
 // ---------------------------------------------------------------------------
+// Planning Signal Handlers
+// ---------------------------------------------------------------------------
+
+async function handlePlanReady(
+  projectRoot: string,
+  wss: WebSocketServer,
+  signal: Signal
+): Promise<void> {
+  const task = await findTask(projectRoot, signal.taskId);
+  if (!task) {
+    console.error(`[dispatch] plan-ready: task ${signal.taskId} not found`);
+    return;
+  }
+
+  // Advance from *-planning to *-review
+  if (task.planningPhase === 'functional-planning') {
+    task.planningPhase = 'functional-review';
+  } else if (task.planningPhase === 'technical-planning') {
+    task.planningPhase = 'technical-review';
+  } else {
+    console.warn(`[dispatch] plan-ready: unexpected phase ${task.planningPhase}`);
+    return;
+  }
+
+  await updateTaskInBacklog(projectRoot, task);
+
+  if (signal.agent) {
+    await updateAgentState(projectRoot, signal.agent, 'idle');
+  }
+
+  broadcast(wss, {
+    type: 'plan-ready',
+    taskId: task.id,
+    planningPhase: task.planningPhase,
+    agent: signal.agent,
+  });
+
+  console.log(`[dispatch] Plan ready for review: ${task.id} (${task.planningPhase})`);
+}
+
+async function handlePlanApproved(
+  projectRoot: string,
+  wss: WebSocketServer,
+  signal: Signal
+): Promise<void> {
+  const task = await findTask(projectRoot, signal.taskId);
+  if (!task) {
+    console.error(`[dispatch] plan-approved: task ${signal.taskId} not found`);
+    return;
+  }
+
+  if (task.planningPhase === 'technical-planning') {
+    // Functional was just approved, technical planning starts
+    console.log(`[dispatch] Starting technical planning for task ${task.id}`);
+    await assignPlannerAgent(projectRoot, wss, task);
+  } else if (task.planningPhase === 'approved') {
+    // Both plans approved — task is ready for implementation
+    console.log(`[dispatch] Task ${task.id} planning complete, ready for implementation`);
+    await scheduleAndRun(projectRoot, wss);
+  }
+}
+
+async function handlePlanRevisionRequested(
+  projectRoot: string,
+  wss: WebSocketServer,
+  signal: Signal
+): Promise<void> {
+  const task = await findTask(projectRoot, signal.taskId);
+  if (!task) {
+    console.error(`[dispatch] plan-revision-requested: task ${signal.taskId} not found`);
+    return;
+  }
+
+  // Task has already been reset to *-planning by the API route
+  // Just need to assign a planner agent
+  console.log(`[dispatch] Revision requested for task ${task.id} (${task.planningPhase})`);
+  await assignPlannerAgent(projectRoot, wss, task);
+}
+
+// ---------------------------------------------------------------------------
 // Scheduling & Running
 // ---------------------------------------------------------------------------
 
@@ -210,6 +300,13 @@ async function scheduleAndRun(
   const backlog = await loadBacklog(projectRoot);
   const inProgress = await loadInProgressTasks(projectRoot);
   const agents = await loadAgents(projectRoot);
+
+  // Try to assign planner agents for tasks in planning phases
+  for (const task of backlog) {
+    if (task.planningPhase === 'functional-planning' || task.planningPhase === 'technical-planning') {
+      await assignPlannerAgent(projectRoot, wss, task);
+    }
+  }
 
   if (backlog.length === 0) {
     console.log('[dispatch] No tasks in backlog');
@@ -372,6 +469,16 @@ async function updateAgentState(
     currentTaskId: taskId ?? null,
     lastActiveAt: new Date().toISOString(),
   });
+}
+
+async function updateTaskInBacklog(projectRoot: string, task: Task): Promise<void> {
+  const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
+  const backlog = await readYaml<Task[]>(backlogPath).catch(() => []);
+  const idx = backlog.findIndex((t) => t.id === task.id);
+  if (idx !== -1) {
+    backlog[idx] = task;
+    await writeYaml(backlogPath, backlog);
+  }
 }
 
 function broadcast(wss: WebSocketServer, data: Record<string, unknown>): void {

@@ -1,5 +1,20 @@
 export type TaskStatus = 'backlog' | 'in-progress' | 'done' | 'blocked';
 
+export type PlanningPhase =
+  | 'functional-planning'
+  | 'functional-review'
+  | 'technical-planning'
+  | 'technical-review'
+  | 'approved';
+
+export interface PlanComment {
+  id: string;
+  taskId: string;
+  phase: 'functional' | 'technical';
+  content: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -13,6 +28,9 @@ export interface Task {
   startedAt?: string;
   completedAt?: string;
   blockedReason?: string;
+  planningPhase?: PlanningPhase;
+  functionalPlanVersion?: number;
+  technicalPlanVersion?: number;
 }
 
 export interface Agent {
@@ -36,7 +54,10 @@ export type SignalType =
   | 'task-completed'
   | 'task-blocked'
   | 'agent-error'
-  | 'wake';
+  | 'wake'
+  | 'plan-ready'
+  | 'plan-approved'
+  | 'plan-revision-requested';
 
 export interface Signal {
   type: SignalType;

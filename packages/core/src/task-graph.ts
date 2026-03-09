@@ -7,6 +7,8 @@ export function getReadyTasks(tasks: Task[]): Task[] {
 
   return tasks.filter((task) => {
     if (task.status !== 'backlog') return false;
+    // Tasks still in planning are not ready for implementation
+    if (task.planningPhase && task.planningPhase !== 'approved') return false;
     if (!task.dependsOn || task.dependsOn.length === 0) return true;
     return task.dependsOn.every((dep) => doneTasks.has(dep));
   });

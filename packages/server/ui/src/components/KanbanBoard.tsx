@@ -5,6 +5,7 @@ interface Props {
   tasks: Task[];
   onMoveTask?: (taskId: string, newStatus: TaskStatus) => void;
   onAddTask?: (task: { title: string; description: string; acceptanceCriteria: string[] }) => Promise<void>;
+  onSelectTask?: (taskId: string) => void;
 }
 
 const COLUMNS: { status: TaskStatus; label: string; border: string; dot: string }[] = [
@@ -14,13 +15,39 @@ const COLUMNS: { status: TaskStatus; label: string; border: string; dot: string 
   { status: 'blocked',     label: 'Blocked',      border: 'border-red-900/60',  dot: 'bg-red-500' },
 ];
 
-function TaskCard({ task, onDragStart }: { task: Task; onDragStart: (id: string) => void }) {
+function PlanningBadge({ task }: { task: Task }) {
+  if (!task.planningPhase || task.planningPhase === 'approved') return null;
+
+  const isReview = task.planningPhase.endsWith('-review');
+  const isFunctional = task.planningPhase.startsWith('functional');
+
+  const label = isFunctional ? 'Functional Plan' : 'Technical Plan';
+  const sublabel = isReview ? 'Needs review' : 'In progress';
+  const color = isFunctional
+    ? 'bg-blue-950/50 text-blue-400 border-blue-900/50'
+    : 'bg-purple-950/50 text-purple-400 border-purple-900/50';
+
+  return (
+    <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border mb-1.5 ${color}`}>
+      {isReview && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse-soft" />}
+      {label} — {sublabel}
+    </div>
+  );
+}
+
+function TaskCard({ task, onDragStart, onClick }: { task: Task; onDragStart: (id: string) => void; onClick?: () => void }) {
+  const hasPlanning = task.planningPhase && task.planningPhase !== 'approved';
+
   return (
     <div
       draggable
       onDragStart={() => onDragStart(task.id)}
-      className="bg-stone-800/80 border border-stone-700/60 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-stone-600 hover:bg-stone-800 transition-all duration-150 animate-fade-in"
+      onClick={hasPlanning ? onClick : undefined}
+      className={`bg-stone-800/80 border border-stone-700/60 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-stone-600 hover:bg-stone-800 transition-all duration-150 animate-fade-in ${
+        hasPlanning ? 'cursor-pointer ring-1 ring-amber-900/30' : ''
+      }`}
     >
+      <PlanningBadge task={task} />
       <div className="text-sm font-medium text-stone-100 mb-1 leading-snug">{task.title}</div>
       {task.agent && (
         <div className="text-xs text-amber-400 mb-1">@{task.agent}</div>
@@ -119,7 +146,7 @@ function QuickAddTask({ onAddTask }: { onAddTask: (task: { title: string; descri
   );
 }
 
-export default function KanbanBoard({ tasks, onMoveTask, onAddTask }: Props) {
+export default function KanbanBoard({ tasks, onMoveTask, onAddTask, onSelectTask }: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<TaskStatus | null>(null);
 
@@ -155,9 +182,21 @@ export default function KanbanBoard({ tasks, onMoveTask, onAddTask }: Props) {
           <div className="flex items-center gap-2 px-3 py-2.5 border-b border-stone-800/60">
             <span className={`w-2 h-2 rounded-full ${col.dot}`} />
             <span className="text-sm font-semibold text-stone-300">{col.label}</span>
-            <span className="ml-auto text-xs bg-stone-800 text-stone-400 rounded-full px-2 py-0.5">
-              {grouped[col.status].length}
-            </span>
+            <div className="ml-auto flex items-center gap-1.5">
+              {col.status === 'backlog' && (() => {
+                const reviewCount = grouped.backlog.filter(
+                  (t) => t.planningPhase === 'functional-review' || t.planningPhase === 'technical-review'
+                ).length;
+                return reviewCount > 0 ? (
+                  <span className="text-xs bg-amber-600 text-stone-950 font-bold rounded-full px-1.5 py-0.5 min-w-[18px] text-center animate-scale-in">
+                    {reviewCount}
+                  </span>
+                ) : null;
+              })()}
+              <span className="text-xs bg-stone-800 text-stone-400 rounded-full px-2 py-0.5">
+                {grouped[col.status].length}
+              </span>
+            </div>
           </div>
 
           {/* Cards */}
@@ -170,6 +209,7 @@ export default function KanbanBoard({ tasks, onMoveTask, onAddTask }: Props) {
                 key={task.id}
                 task={task}
                 onDragStart={setDraggingId}
+                onClick={onSelectTask ? () => onSelectTask(task.id) : undefined}
               />
             ))}
             {col.status === 'backlog' && onAddTask && (

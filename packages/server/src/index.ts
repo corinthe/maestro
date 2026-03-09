@@ -11,6 +11,7 @@ import { createHumanQueueRoutes } from './routes/human-queue.js';
 import { createLogRoutes } from './routes/logs.js';
 import { createObjectiveRoutes } from './routes/objective.js';
 import { createPlanRoutes } from './routes/plan.js';
+import { createTaskPlanRoutes } from './routes/plans.js';
 
 const PORT = 7842;
 
@@ -35,6 +36,7 @@ export function startServer(projectRoot: string) {
   app.use(createLogRoutes(projectRoot));
   app.use(createObjectiveRoutes(wss, projectRoot));
   app.use(createPlanRoutes(projectRoot));
+  app.use(createTaskPlanRoutes(wss, projectRoot));
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
   wss.on('connection', (ws) => {

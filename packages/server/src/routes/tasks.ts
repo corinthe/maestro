@@ -50,7 +50,7 @@ export function createTaskRoutes(wss: WebSocketServer, projectRoot: string) {
 
   router.post('/api/tasks', async (req, res) => {
     try {
-      const { title, description, acceptanceCriteria, dependsOn, filesLocked } = req.body as Record<string, unknown>;
+      const { title, description, acceptanceCriteria, dependsOn, filesLocked, enablePlanning } = req.body as Record<string, unknown>;
 
       if (!title || !description) {
         res.status(400).json({ error: 'title and description are required' });
@@ -65,6 +65,7 @@ export function createTaskRoutes(wss: WebSocketServer, projectRoot: string) {
         acceptanceCriteria: acceptanceCriteria as string[] | undefined,
         dependsOn: dependsOn as string[] | undefined,
         filesLocked: filesLocked as string[] | undefined,
+        ...(enablePlanning ? { planningPhase: 'functional-planning' as const, functionalPlanVersion: 1 } : {}),
       };
 
       const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
