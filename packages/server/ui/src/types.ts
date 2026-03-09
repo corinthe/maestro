@@ -1,5 +1,30 @@
 export type TaskStatus = 'backlog' | 'in-progress' | 'done' | 'blocked';
 
+export type PlanningPhase =
+  | 'functional-planning'
+  | 'functional-review'
+  | 'technical-planning'
+  | 'technical-review'
+  | 'approved';
+
+export interface PlanComment {
+  id: string;
+  taskId: string;
+  phase: 'functional' | 'technical';
+  content: string;
+  createdAt: string;
+}
+
+export interface TaskPlanData {
+  taskId: string;
+  planningPhase: PlanningPhase | null;
+  functionalPlanVersion: number;
+  technicalPlanVersion: number;
+  functionalPlan: string;
+  technicalPlan: string;
+  comments: PlanComment[];
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -13,6 +38,9 @@ export interface Task {
   startedAt?: string;
   completedAt?: string;
   blockedReason?: string;
+  planningPhase?: PlanningPhase;
+  functionalPlanVersion?: number;
+  technicalPlanVersion?: number;
 }
 
 export interface AgentInfo {

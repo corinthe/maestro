@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentInfo, AppStatus, FileLock, HumanQueueItem, LogEntry, Task, TaskStatus, WsMessage } from './types';
+import type { AgentInfo, AppStatus, FileLock, HumanQueueItem, LogEntry, PlanningPhase, Task, TaskStatus, WsMessage } from './types';
 import { useWebSocket } from './hooks/useWebSocket';
 import KanbanBoard from './components/KanbanBoard';
 import AgentCards from './components/AgentCards';
@@ -8,6 +8,7 @@ import OrchestratorPlan from './components/OrchestratorPlan';
 import LogStream from './components/LogStream';
 import HumanQueue from './components/HumanQueue';
 import Controls from './components/Controls';
+import TaskPlanning from './components/TaskPlanning';
 
 type Tab = 'kanban' | 'agents' | 'logs' | 'locks' | 'plan' | 'queue' | 'controls';
 
@@ -44,6 +45,7 @@ export default function App() {
   const [humanQueue, setHumanQueue] = useState<HumanQueueItem[]>([]);
   const [status, setStatus] = useState<AppStatus>({ paused: false, projectRoot: '' });
   const [queueBadge, setQueueBadge] = useState(0);
+  const [selectedPlanTaskId, setSelectedPlanTaskId] = useState<string | null>(null);
   const initialLoadRef = useRef(false);
 
   // ── REST helpers ────────────────────────────────────────────────────────────
@@ -149,6 +151,42 @@ export default function App() {
           void fetchJson<string>('/api/plan').then(setPlan).catch(() => null);
           break;
 
+        case 'plan-ready': {
+          const taskId = String(msg.taskId ?? '');
+          const planningPhase = msg.planningPhase as PlanningPhase;
+          setTasks((prev) =>
+            prev.map((t) => t.id === taskId ? { ...t, planningPhase } : t),
+          );
+          if (msg.agent) {
+            const agent = String(msg.agent);
+            setAgents((prev) =>
+              prev.map((a) => a.name === agent ? { ...a, status: 'idle', currentTaskId: undefined } : a),
+            );
+          }
+          appendLog({ timestamp: ts, agent: String(msg.agent ?? 'system'), level: 'info', message: `Plan ready for review: ${taskId}` });
+          break;
+        }
+
+        case 'plan-approved': {
+          const taskId = String(msg.taskId ?? '');
+          const planningPhase = msg.planningPhase as PlanningPhase;
+          setTasks((prev) =>
+            prev.map((t) => t.id === taskId ? { ...t, planningPhase } : t),
+          );
+          appendLog({ timestamp: ts, agent: 'system', level: 'info', message: `Plan approved: ${String(msg.phase ?? '')} for ${taskId}` });
+          break;
+        }
+
+        case 'plan-revision-requested': {
+          const taskId = String(msg.taskId ?? '');
+          const planningPhase = msg.planningPhase as PlanningPhase;
+          setTasks((prev) =>
+            prev.map((t) => t.id === taskId ? { ...t, planningPhase } : t),
+          );
+          appendLog({ timestamp: ts, agent: 'system', level: 'info', message: `Plan revision requested: ${String(msg.phase ?? '')} for ${taskId}` });
+          break;
+        }
+
         default:
           appendLog({ timestamp: ts, agent: 'system', level: 'debug', message: `WS event: ${msg.type}` });
       }
@@ -212,7 +250,7 @@ export default function App() {
     setQueueBadge((b) => Math.max(0, b - 1));
   };
 
-  const handleAddTask = async (task: { title: string; description: string; acceptanceCriteria: string[] }) => {
+  const handleAddTask = async (task: { title: string; description: string; acceptanceCriteria: string[]; enablePlanning?: boolean }) => {
     const r = await fetch('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -273,8 +311,42 @@ export default function App() {
     setAgents((prev) => prev.filter((a) => a.name !== name));
   };
 
+  const handleApprovePlan = async (taskId: string, phase: 'functional' | 'technical') => {
+    const r = await fetch(`/api/tasks/${taskId}/plan/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase }),
+    });
+    if (!r.ok) throw new Error('Failed to approve plan');
+    // Refresh tasks to get updated planningPhase
+    void fetchJson<Task[]>('/api/tasks').then(setTasks).catch(() => null);
+  };
+
+  const handleRequestChanges = async (taskId: string, phase: 'functional' | 'technical', comment: string) => {
+    const r = await fetch(`/api/tasks/${taskId}/plan/request-changes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase, comment }),
+    });
+    if (!r.ok) throw new Error('Failed to request changes');
+    void fetchJson<Task[]>('/api/tasks').then(setTasks).catch(() => null);
+  };
+
+  const handleAddPlanComment = async (taskId: string, phase: 'functional' | 'technical', content: string) => {
+    const r = await fetch(`/api/tasks/${taskId}/plan/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase, content }),
+    });
+    if (!r.ok) throw new Error('Failed to add comment');
+  };
+
   const agentNames = agents.map((a) => a.name);
   const pendingQueue = humanQueue.filter((i) => !i.resolvedAt).length;
+  const pendingPlanReviews = tasks.filter(
+    (t) => t.planningPhase === 'functional-review' || t.planningPhase === 'technical-review'
+  ).length;
+  const selectedPlanTask = selectedPlanTaskId ? tasks.find((t) => t.id === selectedPlanTaskId) : undefined;
 
   const TABS: Tab[] = ['kanban', 'agents', 'logs', 'locks', 'plan', 'queue', 'controls'];
   const TAB_LABELS: Record<Tab, string> = {
@@ -348,7 +420,7 @@ export default function App() {
         <div className="h-full overflow-y-auto">
           {activeTab === 'kanban' && (
             <div className="h-full min-h-[500px] animate-fade-in">
-              <KanbanBoard tasks={tasks} onMoveTask={handleMoveTask} onAddTask={handleAddTask} />
+              <KanbanBoard tasks={tasks} onMoveTask={handleMoveTask} onAddTask={handleAddTask} onSelectTask={setSelectedPlanTaskId} />
             </div>
           )}
           {activeTab === 'agents' && (
@@ -390,6 +462,36 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {/* ── Planning modal ── */}
+      {selectedPlanTask && selectedPlanTask.planningPhase && (
+        <TaskPlanning
+          task={selectedPlanTask}
+          onClose={() => setSelectedPlanTaskId(null)}
+          onApprovePlan={handleApprovePlan}
+          onRequestChanges={handleRequestChanges}
+          onAddComment={handleAddPlanComment}
+        />
+      )}
+
+      {/* ── Plan review notification bar ── */}
+      {pendingPlanReviews > 0 && !selectedPlanTaskId && (
+        <div
+          className="flex-none bg-blue-950/40 border-t border-blue-900/40 px-4 py-1.5 flex items-center gap-2 cursor-pointer hover:bg-blue-950/60 transition-colors animate-slide-in-up"
+          onClick={() => {
+            const reviewTask = tasks.find(
+              (t) => t.planningPhase === 'functional-review' || t.planningPhase === 'technical-review'
+            );
+            if (reviewTask) setSelectedPlanTaskId(reviewTask.id);
+          }}
+        >
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse-soft" />
+          <span className="text-xs text-blue-400 font-medium">
+            {pendingPlanReviews} plan{pendingPlanReviews > 1 ? 's' : ''} ready for review
+          </span>
+          <span className="ml-auto text-xs text-blue-500/70">Review plan &rarr;</span>
+        </div>
+      )}
 
       {/* ── Status bar ── */}
       {pendingQueue > 0 && activeTab !== 'queue' && (

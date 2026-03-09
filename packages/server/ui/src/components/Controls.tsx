@@ -4,13 +4,13 @@ interface Props {
   paused: boolean;
   onPause: () => Promise<void>;
   onResume: () => Promise<void>;
-  onAddTask: (task: { title: string; description: string; acceptanceCriteria: string[] }) => Promise<void>;
+  onAddTask: (task: { title: string; description: string; acceptanceCriteria: string[]; enablePlanning?: boolean }) => Promise<void>;
   onNewObjective: (objective: string) => Promise<void>;
 }
 
 export default function Controls({ paused, onPause, onResume, onAddTask, onNewObjective }: Props) {
   const [pauseLoading, setPauseLoading] = useState(false);
-  const [taskForm, setTaskForm] = useState({ title: '', description: '', criteria: '' });
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', criteria: '', enablePlanning: true });
   const [taskLoading, setTaskLoading] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState('');
   const [taskError, setTaskError] = useState('');
@@ -39,9 +39,9 @@ export default function Controls({ paused, onPause, onResume, onAddTask, onNewOb
         .split('\n')
         .map((l) => l.trim())
         .filter(Boolean);
-      await onAddTask({ title: taskForm.title.trim(), description: taskForm.description.trim(), acceptanceCriteria });
-      setTaskSuccess('Task added to backlog');
-      setTaskForm({ title: '', description: '', criteria: '' });
+      await onAddTask({ title: taskForm.title.trim(), description: taskForm.description.trim(), acceptanceCriteria, enablePlanning: taskForm.enablePlanning });
+      setTaskSuccess(taskForm.enablePlanning ? 'Task added — planning will start' : 'Task added to backlog');
+      setTaskForm({ title: '', description: '', criteria: '', enablePlanning: true });
       setTimeout(() => setTaskSuccess(''), 3000);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unexpected error';
@@ -161,6 +161,18 @@ export default function Controls({ paused, onPause, onResume, onAddTask, onNewOb
               className="w-full bg-stone-900/70 border border-stone-700 rounded-lg px-3 py-2 text-sm text-stone-100 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-600/50 focus:border-amber-700/50 resize-none font-mono transition-all duration-150"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="enablePlanning"
+              checked={taskForm.enablePlanning}
+              onChange={(e) => setTaskForm((f) => ({ ...f, enablePlanning: e.target.checked }))}
+              className="w-4 h-4 rounded border-stone-600 bg-stone-900 text-amber-600 focus:ring-amber-600/50 focus:ring-offset-0 cursor-pointer"
+            />
+            <label htmlFor="enablePlanning" className="text-xs text-stone-400 cursor-pointer select-none">
+              Enable planning <span className="text-stone-600">(functional + technical review before implementation)</span>
+            </label>
+          </div>
           {taskError && <div className="text-xs text-red-400 animate-fade-in">{taskError}</div>}
           {taskSuccess && <div className="text-xs text-emerald-400 animate-fade-in">{taskSuccess}</div>}
           <div className="flex justify-end">
@@ -169,7 +181,7 @@ export default function Controls({ paused, onPause, onResume, onAddTask, onNewOb
               disabled={!taskForm.title.trim() || !taskForm.description.trim() || taskLoading}
               className="px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-500 text-white text-sm font-medium rounded-lg transition-all duration-150"
             >
-              {taskLoading ? 'Adding...' : 'Add to backlog'}
+              {taskLoading ? 'Adding...' : taskForm.enablePlanning ? 'Add & start planning' : 'Add to backlog'}
             </button>
           </div>
         </form>
