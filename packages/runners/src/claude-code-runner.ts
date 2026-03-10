@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
-import type { Agent, AgentRunResult, AgentRunner } from '@maestro/core';
+import type { Agent, AgentRunResult, AgentRunner, AgentRunOptions } from '@maestro/core';
 
 function getClaudeCommand(): { command: string; prefixArgs: string[] } {
   const customCommand = process.env.CLAUDE_COMMAND;
@@ -61,24 +61,39 @@ export class ClaudeCodeRunner implements AgentRunner {
     return this.checkCommand(cmd);
   }
 
-  async run(agent: Agent, contextPath: string): Promise<AgentRunResult> {
+  async run(agent: Agent, contextPath: string, options?: AgentRunOptions): Promise<AgentRunResult> {
     const context = await fs.readFile(contextPath, 'utf-8');
     const cmd = await this.resolveCommand();
 
     return new Promise((resolve) => {
-      const proc = spawn(cmd.command, [...cmd.prefixArgs, '--print', context], {
+      const args = [
+        ...cmd.prefixArgs,
+        '--print',
+        '--dangerously-skip-permissions',
+        '--verbose',
+      ];
+
+      const proc = spawn(cmd.command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
       });
+
+      // Send context via stdin instead of CLI argument to avoid ARG_MAX limits
+      proc.stdin.write(context);
+      proc.stdin.end();
 
       let stdout = '';
       let stderr = '';
 
       proc.stdout.on('data', (data: Buffer) => {
-        stdout += data.toString();
+        const text = data.toString();
+        stdout += text;
+        options?.onOutput?.({ stream: 'stdout', text });
       });
 
       proc.stderr.on('data', (data: Buffer) => {
-        stderr += data.toString();
+        const text = data.toString();
+        stderr += text;
+        options?.onOutput?.({ stream: 'stderr', text });
       });
 
       proc.on('close', (code) => {

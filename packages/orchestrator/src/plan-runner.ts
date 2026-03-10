@@ -97,7 +97,11 @@ async function launchPlanRunner(
   }
 
   console.log(`[plan-runner] Running agent "${agent.name}" for ${phase} planning on task "${task.id}"`);
-  const result = await runner.run(agent, contextPath);
+  const result = await runner.run(agent, contextPath, {
+    onOutput: ({ stream, text }) => {
+      console.log(`[plan-runner] [${agent.name}] [${stream}] ${text.trimEnd()}`);
+    },
+  });
 
   if (result.success) {
     await emitSignal(projectRoot, {
