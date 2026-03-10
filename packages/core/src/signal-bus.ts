@@ -9,7 +9,7 @@ export async function emitSignal(projectRoot: string, signal: Signal): Promise<s
 
   const filename = signal.taskId
     ? `${signal.type}-${signal.taskId}.signal`
-    : `${signal.type}.signal`;
+    : `${signal.type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.signal`;
 
   const filePath = path.join(signalsDir, filename);
   await writeYaml(filePath, signal);
