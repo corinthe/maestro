@@ -4,12 +4,15 @@ interface Props {
   paused: boolean;
   onPause: () => Promise<void>;
   onResume: () => Promise<void>;
+  onWake: () => Promise<void>;
   onAddTask: (task: { title: string; description: string; acceptanceCriteria: string[]; enablePlanning?: boolean }) => Promise<void>;
   onNewObjective: (objective: string) => Promise<void>;
 }
 
-export default function Controls({ paused, onPause, onResume, onAddTask, onNewObjective }: Props) {
+export default function Controls({ paused, onPause, onResume, onWake, onAddTask, onNewObjective }: Props) {
   const [pauseLoading, setPauseLoading] = useState(false);
+  const [wakeLoading, setWakeLoading] = useState(false);
+  const [wakeSuccess, setWakeSuccess] = useState(false);
   const [taskForm, setTaskForm] = useState({ title: '', description: '', criteria: '', enablePlanning: true });
   const [taskLoading, setTaskLoading] = useState(false);
   const [taskSuccess, setTaskSuccess] = useState('');
@@ -25,6 +28,17 @@ export default function Controls({ paused, onPause, onResume, onAddTask, onNewOb
       paused ? await onResume() : await onPause();
     } finally {
       setPauseLoading(false);
+    }
+  };
+
+  const handleWake = async () => {
+    setWakeLoading(true);
+    try {
+      await onWake();
+      setWakeSuccess(true);
+      setTimeout(() => setWakeSuccess(false), 2000);
+    } finally {
+      setWakeLoading(false);
     }
   };
 
@@ -86,6 +100,14 @@ export default function Controls({ paused, onPause, onResume, onAddTask, onNewOb
               </span>
             </div>
           </div>
+          <button
+            onClick={handleWake}
+            disabled={wakeLoading}
+            className="px-5 py-2 rounded-lg font-medium text-sm transition-all duration-150 bg-indigo-700 hover:bg-indigo-600 text-white disabled:opacity-50"
+            title="Send a wake signal to force the orchestrator to re-check the backlog"
+          >
+            {wakeLoading ? '...' : wakeSuccess ? 'Woken!' : 'Wake'}
+          </button>
           <button
             onClick={handlePauseToggle}
             disabled={pauseLoading}
