@@ -187,6 +187,10 @@ export default function App() {
           break;
         }
 
+        case 'wake':
+          appendLog({ timestamp: ts, agent: 'system', level: 'info', message: 'Orchestrator woken — re-checking backlog' });
+          break;
+
         case 'log-entry':
           appendLog({
             timestamp: String(msg.timestamp ?? ts),
@@ -291,6 +295,11 @@ export default function App() {
   const handleResume = async () => {
     await fetch('/api/resume', { method: 'POST' });
     setStatus((s) => ({ ...s, paused: false }));
+  };
+
+  const handleWake = async () => {
+    const r = await fetch('/api/wake', { method: 'POST' });
+    if (!r.ok) throw new Error('Failed to wake orchestrator');
   };
 
   const handleToggleAgent = async (name: string, enabled: boolean) => {
@@ -464,6 +473,7 @@ export default function App() {
                 paused={status.paused}
                 onPause={handlePause}
                 onResume={handleResume}
+                onWake={handleWake}
                 onAddTask={handleAddTask}
                 onNewObjective={handleNewObjective}
               />
