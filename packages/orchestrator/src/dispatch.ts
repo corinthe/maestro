@@ -139,7 +139,17 @@ export function createDispatcher(deps: DispatchDeps) {
     }
 
     log('info', agent.name, `Runner ready. Starting task "${task.title}" (${task.id})`);
-    const result = await runner.run(agent, contextPath);
+    const result = await runner.run(agent, contextPath, {
+      onOutput: ({ stream, text }) => {
+        broadcast(wss, {
+          type: 'agent-output',
+          agent: agent.name,
+          taskId: task.id,
+          stream,
+          text,
+        });
+      },
+    });
 
     if (result.success) {
       log('info', agent.name, `Task "${task.id}" completed successfully. Summary: ${result.summary?.slice(0, 200) ?? '(no summary)'}`);

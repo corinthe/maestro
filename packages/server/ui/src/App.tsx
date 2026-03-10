@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgentInfo, AppStatus, FileLock, HumanQueueItem, LogEntry, PlanningPhase, Task, TaskStatus, WsMessage } from './types';
+import type { AgentInfo, AgentOutput, AppStatus, FileLock, HumanQueueItem, LogEntry, PlanningPhase, Task, TaskStatus, WsMessage } from './types';
 import { useWebSocket } from './hooks/useWebSocket';
 import KanbanBoard from './components/KanbanBoard';
 import AgentCards from './components/AgentCards';
@@ -34,6 +34,7 @@ const TabIcon = ({ id }: { id: Tab }) => {
 };
 
 const MAX_LOGS = 2000;
+const MAX_OUTPUT_CHUNKS = 500;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('kanban');
@@ -46,6 +47,7 @@ export default function App() {
   const [status, setStatus] = useState<AppStatus>({ paused: false, projectRoot: '' });
   const [queueBadge, setQueueBadge] = useState(0);
   const [selectedPlanTaskId, setSelectedPlanTaskId] = useState<string | null>(null);
+  const [agentOutputs, setAgentOutputs] = useState<Record<string, AgentOutput>>({});
   const initialLoadRef = useRef(false);
 
   // ── REST helpers ────────────────────────────────────────────────────────────
@@ -101,6 +103,12 @@ export default function App() {
           setAgents((prev) =>
             prev.map((a) => a.name === agent ? { ...a, status: 'idle', currentTaskId: undefined } : a),
           );
+          // Clear live output for this agent
+          setAgentOutputs((prev) => {
+            const next = { ...prev };
+            delete next[agent];
+            return next;
+          });
           void fetchJson<FileLock[]>('/api/locks').then(setLocks).catch(() => null);
           appendLog({ timestamp: ts, agent, level: 'info', message: `Completed task ${taskId}` });
           break;
@@ -121,6 +129,12 @@ export default function App() {
           setAgents((prev) =>
             prev.map((a) => a.name === agent ? { ...a, status: 'idle', currentTaskId: undefined } : a),
           );
+          // Clear live output for this agent
+          setAgentOutputs((prev) => {
+            const next = { ...prev };
+            delete next[agent];
+            return next;
+          });
           appendLog({ timestamp: ts, agent, level: 'error', message: String(msg.summary ?? 'Agent error') });
           void fetchJson<HumanQueueItem[]>('/api/human-queue').then((items) => {
             setHumanQueue(items);
@@ -190,6 +204,31 @@ export default function App() {
         case 'wake':
           appendLog({ timestamp: ts, agent: 'system', level: 'info', message: 'Orchestrator woken — re-checking backlog' });
           break;
+
+        case 'agent-output': {
+          const agentName = String(msg.agent ?? '');
+          const taskId = String(msg.taskId ?? '');
+          const stream = msg.stream === 'stderr' ? 'stderr' as const : 'stdout' as const;
+          const text = String(msg.text ?? '');
+          if (agentName && text) {
+            setAgentOutputs((prev) => {
+              const existing = prev[agentName];
+              const chunks = existing?.chunks ?? [];
+              const newChunks = [...chunks, { stream, text, timestamp: ts }];
+              return {
+                ...prev,
+                [agentName]: {
+                  agent: agentName,
+                  taskId,
+                  chunks: newChunks.length > MAX_OUTPUT_CHUNKS
+                    ? newChunks.slice(newChunks.length - MAX_OUTPUT_CHUNKS)
+                    : newChunks,
+                },
+              };
+            });
+          }
+          break;
+        }
 
         case 'log-entry':
           appendLog({
@@ -446,6 +485,7 @@ export default function App() {
               <AgentCards
                 agents={agents}
                 tasks={tasks}
+                agentOutputs={agentOutputs}
                 onToggleAgent={handleToggleAgent}
                 onCreateAgent={handleCreateAgent}
                 onDeleteAgent={handleDeleteAgent}

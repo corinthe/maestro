@@ -92,7 +92,13 @@ export interface AgentRunResult {
   error?: string;
 }
 
+export type RunnerOutputCallback = (data: { stream: 'stdout' | 'stderr'; text: string }) => void;
+
+export interface AgentRunOptions {
+  onOutput?: RunnerOutputCallback;
+}
+
 export interface AgentRunner {
-  run(agent: Agent, contextPath: string): Promise<AgentRunResult>;
+  run(agent: Agent, contextPath: string, options?: AgentRunOptions): Promise<AgentRunResult>;
   isAvailable(): Promise<boolean>;
 }

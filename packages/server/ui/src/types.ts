@@ -87,3 +87,15 @@ export interface AppStatus {
   paused: boolean;
   projectRoot: string;
 }
+
+export interface AgentOutputChunk {
+  stream: 'stdout' | 'stderr';
+  text: string;
+  timestamp: string;
+}
+
+export interface AgentOutput {
+  agent: string;
+  taskId: string;
+  chunks: AgentOutputChunk[];
+}

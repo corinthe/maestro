@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import type { AgentInfo, Task } from '../types';
+import { useState, useRef, useEffect } from 'react';
+import type { AgentInfo, AgentOutput, Task } from '../types';
 
 interface Props {
   agents: AgentInfo[];
   tasks: Task[];
+  agentOutputs: Record<string, AgentOutput>;
   onToggleAgent: (name: string, enabled: boolean) => Promise<void>;
   onCreateAgent: (agent: { name: string; role: string; runner: string; systemPrompt: string }) => Promise<void>;
   onDeleteAgent: (name: string) => Promise<void>;
@@ -30,14 +31,65 @@ const STATUS_CONFIG = {
   },
 };
 
+function LiveOutput({ output }: { output: AgentOutput }) {
+  const [expanded, setExpanded] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (expanded && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [output.chunks.length, expanded]);
+
+  if (output.chunks.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="flex items-center gap-1.5 text-xs text-stone-500 hover:text-stone-300 transition-colors mb-1"
+      >
+        <svg
+          className={`w-3 h-3 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path d="M9 5l7 7-7 7" />
+        </svg>
+        Live output
+        <span className="text-stone-600">({output.chunks.length} chunks)</span>
+      </button>
+      {expanded && (
+        <div
+          ref={scrollRef}
+          className="bg-stone-950 border border-stone-800 rounded-lg p-3 max-h-[200px] overflow-y-auto font-mono text-xs leading-relaxed"
+        >
+          {output.chunks.map((chunk, i) => (
+            <span
+              key={i}
+              className={chunk.stream === 'stderr' ? 'text-orange-400' : 'text-stone-300'}
+            >
+              {chunk.text}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AgentCard({
   agent,
   currentTask,
+  output,
   onToggle,
   onDelete,
 }: {
   agent: AgentInfo;
   currentTask?: Task;
+  output?: AgentOutput;
   onToggle: (name: string, enabled: boolean) => Promise<void>;
   onDelete: (name: string) => Promise<void>;
 }) {
@@ -122,6 +174,11 @@ function AgentCard({
       ) : enabled ? (
         <div className="text-xs text-stone-600 italic">No active task</div>
       ) : null}
+
+      {/* Live output panel */}
+      {enabled && output && output.chunks.length > 0 && (
+        <LiveOutput output={output} />
+      )}
 
       {agent.lastActiveAt && (
         <div className="text-xs text-stone-600 mt-3">
@@ -284,7 +341,7 @@ function CreateAgentForm({ onCreate }: { onCreate: Props['onCreateAgent'] }) {
   );
 }
 
-export default function AgentCards({ agents, tasks, onToggleAgent, onCreateAgent, onDeleteAgent }: Props) {
+export default function AgentCards({ agents, tasks, agentOutputs, onToggleAgent, onCreateAgent, onDeleteAgent }: Props) {
   return (
     <div className="space-y-4">
       {agents.length === 0 && (
@@ -303,6 +360,7 @@ export default function AgentCards({ agents, tasks, onToggleAgent, onCreateAgent
               key={agent.name}
               agent={agent}
               currentTask={currentTask}
+              output={agentOutputs[agent.name]}
               onToggle={onToggleAgent}
               onDelete={onDeleteAgent}
             />
