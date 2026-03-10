@@ -1,6 +1,6 @@
 import { resolveAgentsPath, fileExists, createLogger } from '@maestro/core';
 import { startWatcher } from '@maestro/watcher';
-import { startServer } from '@maestro/server';
+import { startServer, appendLog, broadcast } from '@maestro/server';
 import { createDispatcher } from '@maestro/orchestrator';
 import type { Signal } from '@maestro/core';
 
@@ -18,10 +18,21 @@ export async function startCommand(): Promise<void> {
   log.info('Starting orchestrator...');
 
   // Start server first so we have the WebSocket server for broadcasting
-  const { server, wss } = startServer(projectRoot);
+  const { server, wss, isPaused } = startServer(projectRoot);
+
+  // Log callback: store in-memory (for REST /api/logs) AND broadcast via WebSocket (real-time dashboard)
+  const dispatchLog = (
+    level: 'info' | 'warn' | 'error' | 'debug',
+    agent: string,
+    message: string
+  ) => {
+    const entry = { timestamp: new Date().toISOString(), agent, level, message };
+    appendLog(entry);
+    broadcast(wss, { type: 'log-entry', ...entry });
+  };
 
   // Create the signal dispatcher wired to orchestrator + runners
-  const dispatch = createDispatcher({ projectRoot, wss });
+  const dispatch = createDispatcher({ projectRoot, wss, log: dispatchLog, isPaused });
 
   // Start watcher with the dispatcher as signal handler
   const watcher = startWatcher({
@@ -32,6 +43,7 @@ export async function startCommand(): Promise<void> {
         await dispatch(signal);
       } catch (error) {
         log.error({ err: error, signalType: signal.type }, `Error handling signal ${signal.type}`);
+        dispatchLog('error', 'orchestrator', `Error handling signal "${signal.type}": ${error instanceof Error ? error.message : String(error)}`);
       }
     },
   });

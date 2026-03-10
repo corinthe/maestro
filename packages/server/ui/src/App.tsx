@@ -187,6 +187,15 @@ export default function App() {
           break;
         }
 
+        case 'log-entry':
+          appendLog({
+            timestamp: String(msg.timestamp ?? ts),
+            agent: String(msg.agent ?? 'system'),
+            level: (['info', 'warn', 'error', 'debug'].includes(String(msg.level)) ? msg.level : 'info') as LogEntry['level'],
+            message: String(msg.message ?? ''),
+          });
+          break;
+
         default:
           appendLog({ timestamp: ts, agent: 'system', level: 'debug', message: `WS event: ${msg.type}` });
       }

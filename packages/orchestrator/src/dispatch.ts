@@ -14,9 +14,13 @@ import { assignPlannerAgent } from './plan-runner.js';
 import { createRunner } from '@maestro/runners';
 import type { WebSocketServer } from 'ws';
 
+export type LogFn = (level: 'info' | 'warn' | 'error' | 'debug', agent: string, message: string) => void;
+
 export interface DispatchDeps {
   projectRoot: string;
   wss: WebSocketServer;
+  log?: LogFn;
+  isPaused?: () => boolean;
 }
 
 /**
@@ -25,460 +29,427 @@ export interface DispatchDeps {
 export function createDispatcher(deps: DispatchDeps) {
   const { projectRoot, wss } = deps;
 
+  // Unified log helper: calls deps.log (if wired) AND console.log for terminal visibility
+  const log: LogFn = (level, agent, message) => {
+    if (level === 'error') console.error(`[dispatch] [${agent}] ${message}`);
+    else if (level === 'warn') console.warn(`[dispatch] [${agent}] ${message}`);
+    else if (level === 'debug') console.debug(`[dispatch] [${agent}] ${message}`);
+    else console.log(`[dispatch] [${agent}] ${message}`);
+    deps.log?.(level, agent, message);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Data helpers
+  // ---------------------------------------------------------------------------
+
+  async function loadBacklog(): Promise<Task[]> {
+    const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
+    return readYaml<Task[]>(backlogPath).catch(() => []);
+  }
+
+  async function loadInProgressTasks(): Promise<Task[]> {
+    const dir = resolveAgentsPath(projectRoot, 'tasks', 'in-progress');
+    const fs = await import('node:fs/promises');
+    try {
+      const files = await fs.readdir(dir);
+      const tasks: Task[] = [];
+      for (const file of files) {
+        if (file.endsWith('.yaml')) {
+          const task = await readYaml<Task>(`${dir}/${file}`);
+          tasks.push(task);
+        }
+      }
+      return tasks;
+    } catch {
+      return [];
+    }
+  }
+
+  async function loadAgents(): Promise<Agent[]> {
+    const agentsPath = resolveAgentsPath(projectRoot, 'config', 'agents.yaml');
+    const raw = await readYaml<Agent[]>(agentsPath).catch(() => []);
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  async function findTask(taskId?: string): Promise<Task | undefined> {
+    if (!taskId) return undefined;
+    const inProgressPath = resolveAgentsPath(projectRoot, 'tasks', 'in-progress', `${taskId}.yaml`);
+    const inProgressTask = await readYaml<Task>(inProgressPath).catch(() => undefined);
+    if (inProgressTask) return inProgressTask;
+    const backlog = await loadBacklog();
+    return backlog.find((t) => t.id === taskId);
+  }
+
+  async function removeInProgressTask(taskId: string): Promise<void> {
+    const fs = await import('node:fs/promises');
+    const taskPath = resolveAgentsPath(projectRoot, 'tasks', 'in-progress', `${taskId}.yaml`);
+    await fs.unlink(taskPath).catch(() => {});
+  }
+
+  async function removeFromBacklog(taskId: string): Promise<void> {
+    const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
+    const backlog = await readYaml<Task[]>(backlogPath).catch(() => []);
+    const updated = backlog.filter((t) => t.id !== taskId);
+    await writeYaml(backlogPath, updated);
+  }
+
+  async function updateAgentState(
+    agentName: string,
+    status: 'idle' | 'working' | 'waiting',
+    taskId?: string
+  ): Promise<void> {
+    const statePath = resolveAgentsPath(projectRoot, 'agents', agentName, 'state.json');
+    await writeJson(statePath, {
+      name: agentName,
+      status,
+      currentTaskId: taskId ?? null,
+      lastActiveAt: new Date().toISOString(),
+    });
+  }
+
+  async function updateTaskInBacklog(task: Task): Promise<void> {
+    const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
+    const backlog = await readYaml<Task[]>(backlogPath).catch(() => []);
+    const idx = backlog.findIndex((t) => t.id === task.id);
+    if (idx !== -1) {
+      backlog[idx] = task;
+      await writeYaml(backlogPath, backlog);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scheduling & Running
+  // ---------------------------------------------------------------------------
+
+  async function launchRunner(task: Task, agent: Agent, contextPath: string): Promise<void> {
+    const runner = createRunner(agent.runner);
+
+    log('info', agent.name, `Checking runner availability: "${agent.runner}"...`);
+    const isAvailable = await runner.isAvailable();
+    if (!isAvailable) {
+      log('error', agent.name, `Runner "${agent.runner}" is not available — is the CLI installed and in PATH?`);
+      await emitSignal(projectRoot, {
+        type: 'agent-error',
+        taskId: task.id,
+        agent: agent.name,
+        summary: `Runner "${agent.runner}" is not available. Make sure the CLI is installed and in your PATH.`,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    log('info', agent.name, `Runner ready. Starting task "${task.title}" (${task.id})`);
+    const result = await runner.run(agent, contextPath);
+
+    if (result.success) {
+      log('info', agent.name, `Task "${task.id}" completed successfully. Summary: ${result.summary?.slice(0, 200) ?? '(no summary)'}`);
+      await emitSignal(projectRoot, {
+        type: 'task-completed',
+        taskId: task.id,
+        agent: agent.name,
+        summary: result.summary,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      log('error', agent.name, `Task "${task.id}" failed: ${result.error ?? 'unknown error'}`);
+      await emitSignal(projectRoot, {
+        type: 'agent-error',
+        taskId: task.id,
+        agent: agent.name,
+        summary: result.error ?? 'Agent run failed',
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  async function scheduleAndRun(): Promise<void> {
+    const backlog = await loadBacklog();
+    const inProgress = await loadInProgressTasks();
+    const agents = await loadAgents();
+
+    const enabledAgents = agents.filter((a) => a.enabled !== false);
+    const busyAgentNames = new Set(inProgress.map((t) => t.agent).filter(Boolean));
+    const availableAgents = enabledAgents.filter((a) => !busyAgentNames.has(a.name));
+
+    log('info', 'orchestrator',
+      `Scheduling state: ${backlog.length} backlog task(s), ${inProgress.length} in-progress, ` +
+      `${agents.length} agent(s) configured (${enabledAgents.length} enabled, ${availableAgents.length} available)`
+    );
+
+    if (agents.length === 0) {
+      log('warn', 'orchestrator', 'No agents configured. Run `maestro init` or add agents via the dashboard.');
+      return;
+    }
+
+    if (enabledAgents.length === 0) {
+      log('warn', 'orchestrator', 'All agents are disabled. Enable at least one agent in the Agents tab.');
+      return;
+    }
+
+    // Try to assign planner agents for tasks in planning phases
+    const planningTasks = backlog.filter(
+      (t) => t.planningPhase === 'functional-planning' || t.planningPhase === 'technical-planning'
+    );
+    if (planningTasks.length > 0) {
+      log('info', 'orchestrator', `${planningTasks.length} task(s) in planning phase — assigning planner agents`);
+      for (const task of planningTasks) {
+        await assignPlannerAgent(projectRoot, wss, task);
+      }
+    }
+
+    const readyTasks = backlog.filter(
+      (t) => t.status === 'backlog' && (!t.planningPhase || t.planningPhase === 'approved')
+    );
+
+    if (backlog.length === 0) {
+      log('debug', 'orchestrator', 'Backlog is empty — nothing to schedule');
+      return;
+    }
+
+    if (readyTasks.length === 0) {
+      const waitingOnPlanning = backlog.filter((t) => t.planningPhase && t.planningPhase !== 'approved').length;
+      const waitingOnDeps = backlog.length - waitingOnPlanning;
+      log('info', 'orchestrator',
+        `No ready tasks (${waitingOnPlanning} waiting on planning approval, ${waitingOnDeps} waiting on dependencies or other)`
+      );
+      return;
+    }
+
+    log('info', 'orchestrator', `${readyTasks.length} task(s) ready for assignment`);
+
+    const assignments = scheduleNext(backlog, inProgress, agents, log);
+
+    if (assignments.length === 0) {
+      if (availableAgents.length === 0) {
+        log('info', 'orchestrator',
+          `No assignments: all ${busyAgentNames.size} agent(s) are busy (in-progress: ${inProgress.map((t) => t.id).join(', ')})`
+        );
+      } else {
+        log('info', 'orchestrator',
+          'No assignments: tasks may have file conflicts or unmet dependencies'
+        );
+      }
+      return;
+    }
+
+    for (const { task, agent } of assignments) {
+      log('info', 'orchestrator', `Assigning task "${task.title}" (${task.id}) → agent "${agent.name}" (${agent.role})`);
+
+      task.status = 'in-progress';
+      task.agent = agent.name;
+      task.startedAt = new Date().toISOString();
+
+      const taskPath = resolveAgentsPath(projectRoot, 'tasks', 'in-progress', `${task.id}.yaml`);
+      await writeYaml(taskPath, task);
+      await removeFromBacklog(task.id);
+      await updateAgentState(agent.name, 'working', task.id);
+
+      const allInProgress = await loadInProgressTasks();
+      const contextPath = await buildCurrentContext(projectRoot, task, agent, allInProgress);
+      log('debug', agent.name, `Context built at: ${contextPath}`);
+
+      broadcast(wss, { type: 'task-assigned', taskId: task.id, agent: agent.name });
+
+      launchRunner(task, agent, contextPath).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        log('error', agent.name, `Runner launch error for task ${task.id}: ${msg}`);
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Signal Handlers
+  // ---------------------------------------------------------------------------
+
+  async function handleNewObjective(signal: Signal): Promise<void> {
+    const objective = signal.summary;
+    if (!objective) {
+      log('error', 'orchestrator', 'new-objective signal missing summary');
+      return;
+    }
+
+    log('info', 'orchestrator', `Decomposing objective: "${objective}"`);
+    const tasks = await decomposeObjective(projectRoot, objective);
+    log('info', 'orchestrator', `Created ${tasks.length} task(s) in backlog`);
+
+    broadcast(wss, { type: 'objective-decomposed', objective, taskCount: tasks.length });
+    await scheduleAndRun();
+  }
+
+  async function handleTaskCompleted(signal: Signal): Promise<void> {
+    const task = await findTask(signal.taskId);
+    if (!task) {
+      log('error', 'orchestrator', `task-completed: task ${signal.taskId} not found`);
+      return;
+    }
+
+    const result: AgentRunResult = { success: true, summary: signal.summary ?? '' };
+
+    log('info', signal.agent ?? 'orchestrator', `Task completed: "${task.title}" (${task.id})`);
+    await consolidateTask(projectRoot, task, result);
+    await removeInProgressTask(task.id);
+
+    if (signal.agent) {
+      await updateAgentState(signal.agent, 'idle');
+      log('debug', signal.agent, `Agent is now idle`);
+    }
+
+    broadcast(wss, { type: 'task-completed', taskId: task.id, agent: signal.agent });
+    await scheduleAndRun();
+  }
+
+  async function handleTaskBlocked(signal: Signal): Promise<void> {
+    const task = await findTask(signal.taskId);
+    if (!task) {
+      log('error', 'orchestrator', `task-blocked: task ${signal.taskId} not found`);
+      return;
+    }
+
+    const result: AgentRunResult = { success: false, summary: '', error: signal.summary ?? 'Task blocked' };
+
+    log('warn', signal.agent ?? 'orchestrator', `Task blocked: "${task.title}" (${task.id}) — ${signal.summary}`);
+    await consolidateTask(projectRoot, task, result);
+    await removeInProgressTask(task.id);
+
+    if (signal.agent) {
+      await updateAgentState(signal.agent, 'idle');
+    }
+
+    broadcast(wss, { type: 'task-blocked', taskId: task.id, agent: signal.agent, reason: signal.summary });
+    await scheduleAndRun();
+  }
+
+  async function handleAgentError(signal: Signal): Promise<void> {
+    log('error', signal.agent ?? 'orchestrator', `Agent error: ${signal.summary}`);
+
+    const item: HumanQueueItem = {
+      id: `error-${Date.now()}`,
+      type: 'error',
+      title: `Agent error: ${signal.agent ?? 'unknown'}`,
+      description: signal.summary ?? 'Unknown error occurred',
+      context: { taskId: signal.taskId, agent: signal.agent },
+      createdAt: new Date().toISOString(),
+    };
+
+    const itemPath = resolveAgentsPath(projectRoot, 'human-queue', `${item.id}.yaml`);
+    await writeYaml(itemPath, item);
+
+    if (signal.taskId) {
+      const task = await findTask(signal.taskId);
+      if (task) {
+        const result: AgentRunResult = { success: false, summary: '', error: `Agent error: ${signal.summary}` };
+        await consolidateTask(projectRoot, task, result);
+        await removeInProgressTask(task.id);
+      }
+    }
+
+    if (signal.agent) {
+      await updateAgentState(signal.agent, 'idle');
+    }
+
+    broadcast(wss, { type: 'agent-error', taskId: signal.taskId, agent: signal.agent, error: signal.summary, escalated: true });
+  }
+
+  async function handlePlanReady(signal: Signal): Promise<void> {
+    const task = await findTask(signal.taskId);
+    if (!task) {
+      log('error', 'orchestrator', `plan-ready: task ${signal.taskId} not found`);
+      return;
+    }
+
+    if (task.planningPhase === 'functional-planning') {
+      task.planningPhase = 'functional-review';
+    } else if (task.planningPhase === 'technical-planning') {
+      task.planningPhase = 'technical-review';
+    } else {
+      log('warn', 'orchestrator', `plan-ready: unexpected phase ${task.planningPhase}`);
+      return;
+    }
+
+    await updateTaskInBacklog(task);
+
+    if (signal.agent) {
+      await updateAgentState(signal.agent, 'idle');
+    }
+
+    broadcast(wss, { type: 'plan-ready', taskId: task.id, planningPhase: task.planningPhase, agent: signal.agent });
+    log('info', 'orchestrator', `Plan ready for review: ${task.id} (${task.planningPhase})`);
+  }
+
+  async function handlePlanApproved(signal: Signal): Promise<void> {
+    const task = await findTask(signal.taskId);
+    if (!task) {
+      log('error', 'orchestrator', `plan-approved: task ${signal.taskId} not found`);
+      return;
+    }
+
+    if (task.planningPhase === 'technical-planning') {
+      log('info', 'orchestrator', `Starting technical planning for task ${task.id}`);
+      await assignPlannerAgent(projectRoot, wss, task);
+    } else if (task.planningPhase === 'approved') {
+      log('info', 'orchestrator', `Task ${task.id} planning complete, ready for implementation`);
+      await scheduleAndRun();
+    }
+  }
+
+  async function handlePlanRevisionRequested(signal: Signal): Promise<void> {
+    const task = await findTask(signal.taskId);
+    if (!task) {
+      log('error', 'orchestrator', `plan-revision-requested: task ${signal.taskId} not found`);
+      return;
+    }
+
+    log('info', 'orchestrator', `Revision requested for task ${task.id} (${task.planningPhase})`);
+    await assignPlannerAgent(projectRoot, wss, task);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Main dispatcher
+  // ---------------------------------------------------------------------------
+
   return async (signal: Signal): Promise<void> => {
-    console.log(
-      `[dispatch] Handling signal: ${signal.type}` +
+    if (deps.isPaused?.()) {
+      log('debug', 'orchestrator', `Signal "${signal.type}" skipped — orchestrator is paused`);
+      return;
+    }
+
+    log(
+      'info',
+      'orchestrator',
+      `Signal received: ${signal.type}` +
         (signal.taskId ? ` (task: ${signal.taskId})` : '') +
         (signal.agent ? ` (agent: ${signal.agent})` : '')
     );
 
     switch (signal.type) {
       case 'new-objective':
-        await handleNewObjective(projectRoot, wss, signal);
+        await handleNewObjective(signal);
         break;
       case 'task-completed':
-        await handleTaskCompleted(projectRoot, wss, signal);
+        await handleTaskCompleted(signal);
         break;
       case 'task-blocked':
-        await handleTaskBlocked(projectRoot, wss, signal);
+        await handleTaskBlocked(signal);
         break;
       case 'agent-error':
-        await handleAgentError(projectRoot, wss, signal);
+        await handleAgentError(signal);
         break;
       case 'plan-ready':
-        await handlePlanReady(projectRoot, wss, signal);
+        await handlePlanReady(signal);
         break;
       case 'plan-approved':
-        await handlePlanApproved(projectRoot, wss, signal);
+        await handlePlanApproved(signal);
         break;
       case 'plan-revision-requested':
-        await handlePlanRevisionRequested(projectRoot, wss, signal);
+        await handlePlanRevisionRequested(signal);
         break;
       case 'wake':
-        await scheduleAndRun(projectRoot, wss);
+        await scheduleAndRun();
         break;
       default:
-        console.warn(`[dispatch] Unknown signal type: ${(signal as Signal).type}`);
+        log('warn', 'orchestrator', `Unknown signal type: ${(signal as Signal).type}`);
     }
   };
-}
-
-// ---------------------------------------------------------------------------
-// Signal Handlers
-// ---------------------------------------------------------------------------
-
-async function handleNewObjective(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  const objective = signal.summary;
-  if (!objective) {
-    console.error('[dispatch] new-objective signal missing summary');
-    return;
-  }
-
-  console.log(`[dispatch] Decomposing objective: "${objective}"`);
-  const tasks = await decomposeObjective(projectRoot, objective);
-  console.log(`[dispatch] Created ${tasks.length} task(s) in backlog`);
-
-  broadcast(wss, { type: 'objective-decomposed', objective, taskCount: tasks.length });
-
-  // Immediately try to schedule
-  await scheduleAndRun(projectRoot, wss);
-}
-
-async function handleTaskCompleted(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  const task = await findTask(projectRoot, signal.taskId);
-  if (!task) {
-    console.error(`[dispatch] task-completed: task ${signal.taskId} not found`);
-    return;
-  }
-
-  const result: AgentRunResult = {
-    success: true,
-    summary: signal.summary ?? '',
-  };
-
-  console.log(`[dispatch] Consolidating completed task: ${task.id}`);
-  await consolidateTask(projectRoot, task, result);
-
-  // Remove from in-progress
-  await removeInProgressTask(projectRoot, task.id);
-
-  // Update agent state to idle
-  if (signal.agent) {
-    await updateAgentState(projectRoot, signal.agent, 'idle');
-  }
-
-  broadcast(wss, { type: 'task-completed', taskId: task.id, agent: signal.agent });
-
-  // Schedule next tasks
-  await scheduleAndRun(projectRoot, wss);
-}
-
-async function handleTaskBlocked(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  const task = await findTask(projectRoot, signal.taskId);
-  if (!task) {
-    console.error(`[dispatch] task-blocked: task ${signal.taskId} not found`);
-    return;
-  }
-
-  const result: AgentRunResult = {
-    success: false,
-    summary: '',
-    error: signal.summary ?? 'Task blocked',
-  };
-
-  console.log(`[dispatch] Task blocked: ${task.id} — ${signal.summary}`);
-  await consolidateTask(projectRoot, task, result);
-  await removeInProgressTask(projectRoot, task.id);
-
-  if (signal.agent) {
-    await updateAgentState(projectRoot, signal.agent, 'idle');
-  }
-
-  broadcast(wss, {
-    type: 'task-blocked',
-    taskId: task.id,
-    agent: signal.agent,
-    reason: signal.summary,
-  });
-
-  // Try scheduling other tasks
-  await scheduleAndRun(projectRoot, wss);
-}
-
-async function handleAgentError(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  console.error(
-    `[dispatch] Agent error: ${signal.agent ?? 'unknown'} — ${signal.summary}`
-  );
-
-  // Escalate to human queue
-  const item: HumanQueueItem = {
-    id: `error-${Date.now()}`,
-    type: 'error',
-    title: `Agent error: ${signal.agent ?? 'unknown'}`,
-    description: signal.summary ?? 'Unknown error occurred',
-    context: {
-      taskId: signal.taskId,
-      agent: signal.agent,
-    },
-    createdAt: new Date().toISOString(),
-  };
-
-  const itemPath = resolveAgentsPath(projectRoot, 'human-queue', `${item.id}.yaml`);
-  await writeYaml(itemPath, item);
-
-  // If there's a task associated, mark it blocked
-  if (signal.taskId) {
-    const task = await findTask(projectRoot, signal.taskId);
-    if (task) {
-      const result: AgentRunResult = {
-        success: false,
-        summary: '',
-        error: `Agent error: ${signal.summary}`,
-      };
-      await consolidateTask(projectRoot, task, result);
-      await removeInProgressTask(projectRoot, task.id);
-    }
-  }
-
-  if (signal.agent) {
-    await updateAgentState(projectRoot, signal.agent, 'idle');
-  }
-
-  broadcast(wss, {
-    type: 'agent-error',
-    taskId: signal.taskId,
-    agent: signal.agent,
-    error: signal.summary,
-    escalated: true,
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Planning Signal Handlers
-// ---------------------------------------------------------------------------
-
-async function handlePlanReady(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  const task = await findTask(projectRoot, signal.taskId);
-  if (!task) {
-    console.error(`[dispatch] plan-ready: task ${signal.taskId} not found`);
-    return;
-  }
-
-  // Advance from *-planning to *-review
-  if (task.planningPhase === 'functional-planning') {
-    task.planningPhase = 'functional-review';
-  } else if (task.planningPhase === 'technical-planning') {
-    task.planningPhase = 'technical-review';
-  } else {
-    console.warn(`[dispatch] plan-ready: unexpected phase ${task.planningPhase}`);
-    return;
-  }
-
-  await updateTaskInBacklog(projectRoot, task);
-
-  if (signal.agent) {
-    await updateAgentState(projectRoot, signal.agent, 'idle');
-  }
-
-  broadcast(wss, {
-    type: 'plan-ready',
-    taskId: task.id,
-    planningPhase: task.planningPhase,
-    agent: signal.agent,
-  });
-
-  console.log(`[dispatch] Plan ready for review: ${task.id} (${task.planningPhase})`);
-}
-
-async function handlePlanApproved(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  const task = await findTask(projectRoot, signal.taskId);
-  if (!task) {
-    console.error(`[dispatch] plan-approved: task ${signal.taskId} not found`);
-    return;
-  }
-
-  if (task.planningPhase === 'technical-planning') {
-    // Functional was just approved, technical planning starts
-    console.log(`[dispatch] Starting technical planning for task ${task.id}`);
-    await assignPlannerAgent(projectRoot, wss, task);
-  } else if (task.planningPhase === 'approved') {
-    // Both plans approved — task is ready for implementation
-    console.log(`[dispatch] Task ${task.id} planning complete, ready for implementation`);
-    await scheduleAndRun(projectRoot, wss);
-  }
-}
-
-async function handlePlanRevisionRequested(
-  projectRoot: string,
-  wss: WebSocketServer,
-  signal: Signal
-): Promise<void> {
-  const task = await findTask(projectRoot, signal.taskId);
-  if (!task) {
-    console.error(`[dispatch] plan-revision-requested: task ${signal.taskId} not found`);
-    return;
-  }
-
-  // Task has already been reset to *-planning by the API route
-  // Just need to assign a planner agent
-  console.log(`[dispatch] Revision requested for task ${task.id} (${task.planningPhase})`);
-  await assignPlannerAgent(projectRoot, wss, task);
-}
-
-// ---------------------------------------------------------------------------
-// Scheduling & Running
-// ---------------------------------------------------------------------------
-
-async function scheduleAndRun(
-  projectRoot: string,
-  wss: WebSocketServer
-): Promise<void> {
-  const backlog = await loadBacklog(projectRoot);
-  const inProgress = await loadInProgressTasks(projectRoot);
-  const agents = await loadAgents(projectRoot);
-
-  // Try to assign planner agents for tasks in planning phases
-  for (const task of backlog) {
-    if (task.planningPhase === 'functional-planning' || task.planningPhase === 'technical-planning') {
-      await assignPlannerAgent(projectRoot, wss, task);
-    }
-  }
-
-  if (backlog.length === 0) {
-    console.log('[dispatch] No tasks in backlog');
-    return;
-  }
-
-  const assignments = scheduleNext(backlog, inProgress, agents);
-
-  if (assignments.length === 0) {
-    console.log('[dispatch] No tasks could be assigned (all agents busy or conflicts)');
-    return;
-  }
-
-  for (const { task, agent } of assignments) {
-    console.log(`[dispatch] Assigning task "${task.title}" to agent "${agent.name}"`);
-
-    // Move task to in-progress
-    task.status = 'in-progress';
-    task.agent = agent.name;
-    task.startedAt = new Date().toISOString();
-
-    const taskPath = resolveAgentsPath(projectRoot, 'tasks', 'in-progress', `${task.id}.yaml`);
-    await writeYaml(taskPath, task);
-
-    // Remove from backlog
-    await removeFromBacklog(projectRoot, task.id);
-
-    // Update agent state
-    await updateAgentState(projectRoot, agent.name, 'working', task.id);
-
-    // Build context and launch runner
-    const allInProgress = await loadInProgressTasks(projectRoot);
-    const contextPath = await buildCurrentContext(projectRoot, task, agent, allInProgress);
-
-    broadcast(wss, {
-      type: 'task-assigned',
-      taskId: task.id,
-      agent: agent.name,
-    });
-
-    // Fire-and-forget: launch the runner, emit signal on completion
-    launchRunner(projectRoot, task, agent, contextPath).catch((err) => {
-      console.error(`[dispatch] Runner launch error for task ${task.id}:`, err);
-    });
-  }
-}
-
-async function launchRunner(
-  projectRoot: string,
-  task: Task,
-  agent: Agent,
-  contextPath: string
-): Promise<void> {
-  const runner = createRunner(agent.runner);
-
-  const isAvailable = await runner.isAvailable();
-  if (!isAvailable) {
-    console.error(`[dispatch] Runner "${agent.runner}" is not available`);
-    await emitSignal(projectRoot, {
-      type: 'agent-error',
-      taskId: task.id,
-      agent: agent.name,
-      summary: `Runner "${agent.runner}" is not available`,
-      timestamp: new Date().toISOString(),
-    });
-    return;
-  }
-
-  console.log(`[dispatch] Running agent "${agent.name}" on task "${task.id}"`);
-  const result = await runner.run(agent, contextPath);
-
-  if (result.success) {
-    await emitSignal(projectRoot, {
-      type: 'task-completed',
-      taskId: task.id,
-      agent: agent.name,
-      summary: result.summary,
-      timestamp: new Date().toISOString(),
-    });
-  } else {
-    await emitSignal(projectRoot, {
-      type: 'agent-error',
-      taskId: task.id,
-      agent: agent.name,
-      summary: result.error ?? 'Agent run failed',
-      timestamp: new Date().toISOString(),
-    });
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Data helpers
-// ---------------------------------------------------------------------------
-
-async function loadBacklog(projectRoot: string): Promise<Task[]> {
-  const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
-  return readYaml<Task[]>(backlogPath).catch(() => []);
-}
-
-async function loadInProgressTasks(projectRoot: string): Promise<Task[]> {
-  const dir = resolveAgentsPath(projectRoot, 'tasks', 'in-progress');
-  const fs = await import('node:fs/promises');
-  try {
-    const files = await fs.readdir(dir);
-    const tasks: Task[] = [];
-    for (const file of files) {
-      if (file.endsWith('.yaml')) {
-        const task = await readYaml<Task>(`${dir}/${file}`);
-        tasks.push(task);
-      }
-    }
-    return tasks;
-  } catch {
-    return [];
-  }
-}
-
-async function loadAgents(projectRoot: string): Promise<Agent[]> {
-  const agentsPath = resolveAgentsPath(projectRoot, 'config', 'agents.yaml');
-  const raw = await readYaml<Agent[]>(agentsPath).catch(() => []);
-  return Array.isArray(raw) ? raw : [];
-}
-
-async function findTask(projectRoot: string, taskId?: string): Promise<Task | undefined> {
-  if (!taskId) return undefined;
-
-  // Check in-progress first
-  const inProgressPath = resolveAgentsPath(projectRoot, 'tasks', 'in-progress', `${taskId}.yaml`);
-  const inProgressTask = await readYaml<Task>(inProgressPath).catch(() => undefined);
-  if (inProgressTask) return inProgressTask;
-
-  // Check backlog
-  const backlog = await loadBacklog(projectRoot);
-  return backlog.find((t) => t.id === taskId);
-}
-
-async function removeInProgressTask(projectRoot: string, taskId: string): Promise<void> {
-  const fs = await import('node:fs/promises');
-  const taskPath = resolveAgentsPath(projectRoot, 'tasks', 'in-progress', `${taskId}.yaml`);
-  await fs.unlink(taskPath).catch(() => {});
-}
-
-async function removeFromBacklog(projectRoot: string, taskId: string): Promise<void> {
-  const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
-  const backlog = await readYaml<Task[]>(backlogPath).catch(() => []);
-  const updated = backlog.filter((t) => t.id !== taskId);
-  await writeYaml(backlogPath, updated);
-}
-
-async function updateAgentState(
-  projectRoot: string,
-  agentName: string,
-  status: 'idle' | 'working' | 'waiting',
-  taskId?: string
-): Promise<void> {
-  const statePath = resolveAgentsPath(projectRoot, 'agents', agentName, 'state.json');
-  await writeJson(statePath, {
-    name: agentName,
-    status,
-    currentTaskId: taskId ?? null,
-    lastActiveAt: new Date().toISOString(),
-  });
-}
-
-async function updateTaskInBacklog(projectRoot: string, task: Task): Promise<void> {
-  const backlogPath = resolveAgentsPath(projectRoot, 'tasks', 'backlog.yaml');
-  const backlog = await readYaml<Task[]>(backlogPath).catch(() => []);
-  const idx = backlog.findIndex((t) => t.id === task.id);
-  if (idx !== -1) {
-    backlog[idx] = task;
-    await writeYaml(backlogPath, backlog);
-  }
 }
 
 function broadcast(wss: WebSocketServer, data: Record<string, unknown>): void {
