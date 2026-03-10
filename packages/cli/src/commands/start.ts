@@ -35,7 +35,7 @@ export async function startCommand(): Promise<void> {
   const dispatch = createDispatcher({ projectRoot, wss, log: dispatchLog, isPaused });
 
   // Start watcher with the dispatcher as signal handler
-  const watcher = startWatcher({
+  const watcher = await startWatcher({
     projectRoot,
     onSignal: async (signal: Signal) => {
       log.info({ signalType: signal.type, taskId: signal.taskId }, `Signal received: ${signal.type}`);

@@ -12,7 +12,7 @@ import * as os from 'node:os';
 // Use vi.hoisted so these variables are available at the time vi.mock factories run
 const { mockStartWatcher, mockStartServer, mockCreateDispatcher } = vi.hoisted(() => {
   return {
-    mockStartWatcher: vi.fn().mockReturnValue({ close: vi.fn() }),
+    mockStartWatcher: vi.fn().mockResolvedValue({ close: vi.fn() }),
     mockStartServer: vi.fn().mockReturnValue({
       server: { close: vi.fn((cb: () => void) => cb()) },
       wss: {},
@@ -49,7 +49,7 @@ describe('start command', () => {
     }) as never);
     vi.clearAllMocks();
     // Re-apply return values after clearAllMocks
-    mockStartWatcher.mockReturnValue({ close: vi.fn() });
+    mockStartWatcher.mockResolvedValue({ close: vi.fn() });
     mockStartServer.mockReturnValue({
       server: { close: vi.fn((cb: () => void) => cb()) },
       wss: {},
