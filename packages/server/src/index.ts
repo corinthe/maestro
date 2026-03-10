@@ -4,6 +4,9 @@ import { WebSocketServer } from 'ws';
 import * as path from 'node:path';
 import { appendLog } from './logger.js';
 import { createStatusRoutes } from './routes/status.js';
+
+export { appendLog, getLogs } from './logger.js';
+export { broadcast } from './broadcast.js';
 import { createTaskRoutes } from './routes/tasks.js';
 import { createAgentRoutes } from './routes/agents.js';
 import { createLockRoutes } from './routes/locks.js';
