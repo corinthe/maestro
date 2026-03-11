@@ -73,8 +73,26 @@ export class ClaudeCodeRunner implements AgentRunner {
         '--verbose',
       ];
 
+      // Log the command invocation details
+      console.log('\n=== Claude Command Invocation ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('Agent:', agent.name);
+      console.log('Agent Role:', agent.role);
+      console.log('Agent Runner:', agent.runner);
+      console.log('Context Path:', contextPath);
+      console.log('Command:', cmd.command);
+      console.log('Arguments:', JSON.stringify(args, null, 2));
+      console.log('Full Command Line:', `${cmd.command} ${args.join(' ')}`);
+      console.log('Context Length (bytes):', context.length);
+      console.log('Context Preview (first 500 chars):', context.slice(0, 500));
+      console.log('================================\n');
+
       const proc = spawn(cmd.command, args, {
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          NODE_TLS_REJECT_UNAUTHORIZED: '0',
+        },
       });
 
       // Send context via stdin instead of CLI argument to avoid ARG_MAX limits
@@ -103,10 +121,26 @@ export class ClaudeCodeRunner implements AgentRunner {
             summary: stdout.trim(),
           });
         } else {
+          // Build comprehensive error message with full context
+          const errorParts = [
+            `Claude process exited with code ${code}`,
+            `Agent: ${agent.name} (${agent.role})`,
+            `Command: ${cmd.command} ${args.join(' ')}`,
+            `Context file: ${contextPath}`,
+          ];
+
+          if (stderr.trim()) {
+            errorParts.push(`Stderr: ${stderr.trim()}`);
+          }
+
+          if (stdout.trim()) {
+            errorParts.push(`Stdout: ${stdout.trim()}`);
+          }
+
           resolve({
             success: false,
             summary: '',
-            error: stderr.trim() || `Process exited with code ${code}`,
+            error: errorParts.join('\n'),
           });
         }
       });
@@ -115,7 +149,13 @@ export class ClaudeCodeRunner implements AgentRunner {
         resolve({
           success: false,
           summary: '',
-          error: err.message,
+          error: [
+            `Failed to spawn Claude process: ${err.message}`,
+            `Agent: ${agent.name} (${agent.role})`,
+            `Command: ${cmd.command} ${args.join(' ')}`,
+            `Context file: ${contextPath}`,
+            `Error name: ${err.name}`,
+          ].join('\n'),
         });
       });
     });

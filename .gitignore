@@ -9,3 +9,5 @@ dist-ui/
 .ai-agents/agents/*/current-context.md
 .ai-agents/tasks/in-progress/
 .ai-agents/tasks/done/
+/.idea/
+/.ai-agents/

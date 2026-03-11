@@ -10,6 +10,7 @@ interface Props {
 
 const COLUMNS: { status: TaskStatus; label: string; border: string; dot: string }[] = [
   { status: 'backlog',     label: 'Backlog',      border: 'border-stone-700',   dot: 'bg-stone-500' },
+  { status: 'plan',        label: 'Plan',         border: 'border-blue-700/60', dot: 'bg-blue-500' },
   { status: 'in-progress', label: 'In Progress',  border: 'border-amber-700/60', dot: 'bg-amber-500' },
   { status: 'done',        label: 'Done',         border: 'border-emerald-800/60', dot: 'bg-emerald-500' },
   { status: 'blocked',     label: 'Blocked',      border: 'border-red-900/60',  dot: 'bg-red-500' },
@@ -155,7 +156,7 @@ export default function KanbanBoard({ tasks, onMoveTask, onAddTask, onSelectTask
       acc[col.status] = tasks.filter((t) => t.status === col.status);
       return acc;
     },
-    { backlog: [], 'in-progress': [], done: [], blocked: [] },
+    { backlog: [], plan: [], 'in-progress': [], done: [], blocked: [] },
   );
 
   const handleDrop = (status: TaskStatus) => {
@@ -167,7 +168,7 @@ export default function KanbanBoard({ tasks, onMoveTask, onAddTask, onSelectTask
   };
 
   return (
-    <div className="grid grid-cols-4 gap-4 h-full">
+    <div className="grid grid-cols-5 gap-4 h-full">
       {COLUMNS.map((col) => (
         <div
           key={col.status}

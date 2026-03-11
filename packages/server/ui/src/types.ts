@@ -1,4 +1,4 @@
-export type TaskStatus = 'backlog' | 'in-progress' | 'done' | 'blocked';
+export type TaskStatus = 'backlog' | 'plan' | 'in-progress' | 'done' | 'blocked';
 
 export type PlanningPhase =
   | 'functional-planning'

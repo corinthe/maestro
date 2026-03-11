@@ -1,4 +1,4 @@
-export type TaskStatus = 'backlog' | 'in-progress' | 'done' | 'blocked';
+export type TaskStatus = 'backlog' | 'plan' | 'in-progress' | 'done' | 'blocked';
 
 export type PlanningPhase =
   | 'functional-planning'
@@ -31,6 +31,7 @@ export interface Task {
   planningPhase?: PlanningPhase;
   functionalPlanVersion?: number;
   technicalPlanVersion?: number;
+  enablePlanification?: boolean;
 }
 
 export interface Agent {
