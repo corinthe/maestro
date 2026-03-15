@@ -29,14 +29,38 @@ Le MVP tourne entierement en local sur la machine du developpeur (ou sur un Rasp
 
 ## Documentation
 
+### Architecture
+
 | Document | Description |
 |---|---|
-| [FEATURES.md](./FEATURES.md) | Liste des fonctionnalites du MVP |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture technique detaillee |
-| [COMPONENTS.md](./COMPONENTS.md) | Description de chaque composant |
-| [AGENTS.md](./AGENTS.md) | Systeme d'agents : templates, heritage, orchestration |
-| [WORKFLOW.md](./WORKFLOW.md) | Workflow de bout en bout avec exemples |
-| [KANBAN.md](./KANBAN.md) | Description du tableau kanban et de ses colonnes |
-| [LLM-PROVIDER.md](./LLM-PROVIDER.md) | Abstraction LLM : CLI claude aujourd'hui, API demain |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | Options de deploiement (local, Raspberry Pi, cloud) |
-| [ROADMAP.md](./ROADMAP.md) | Evolution du MVP vers un produit complet |
+| [ARCHITECTURE.md](./docs/architecture/ARCHITECTURE.md) | Architecture technique detaillee |
+| [COMPONENTS.md](./docs/architecture/COMPONENTS.md) | Description de chaque composant |
+| [DECISIONS.md](./docs/architecture/DECISIONS.md) | Decisions techniques et leur justification |
+
+### Produit
+
+| Document | Description |
+|---|---|
+| [FEATURES.md](./docs/product/FEATURES.md) | Liste des fonctionnalites du MVP |
+| [KANBAN.md](./docs/product/KANBAN.md) | Description du tableau kanban et de ses colonnes |
+| [WORKFLOW.md](./docs/product/WORKFLOW.md) | Workflow de bout en bout avec exemples |
+| [ROADMAP.md](./docs/product/ROADMAP.md) | Evolution du MVP vers un produit complet |
+
+### Agents
+
+| Document | Description |
+|---|---|
+| [AGENTS.md](./docs/agents/AGENTS.md) | Systeme d'agents : templates, heritage, orchestration |
+| [LLM-PROVIDER.md](./docs/agents/LLM-PROVIDER.md) | Abstraction LLM : CLI claude aujourd'hui, API demain |
+
+### Operations
+
+| Document | Description |
+|---|---|
+| [DEPLOYMENT.md](./docs/operations/DEPLOYMENT.md) | Options de deploiement (local, Raspberry Pi, cloud) |
+
+### Reference
+
+| Document | Description |
+|---|---|
+| [GLOSSARY.md](./docs/GLOSSARY.md) | Definitions de tous les termes utilises |
