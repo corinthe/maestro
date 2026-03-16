@@ -1,6 +1,7 @@
 import { Routes, Route, NavLink } from "react-router-dom";
 import { TaskListPage } from "./pages/task-list-page";
 import { TaskDetailPage } from "./pages/task-detail-page";
+import { SettingsPage } from "./pages/settings-page";
 import { useWebSocket } from "./hooks/use-websocket";
 
 export function App(): React.JSX.Element {
@@ -17,6 +18,9 @@ export function App(): React.JSX.Element {
             <NavLink to="/" end>
               Tâches
             </NavLink>
+            <NavLink to="/settings">
+              Configuration
+            </NavLink>
           </div>
           <div className="ws-status">
             <span
@@ -30,6 +34,7 @@ export function App(): React.JSX.Element {
         <Routes>
           <Route path="/" element={<TaskListPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>
     </div>

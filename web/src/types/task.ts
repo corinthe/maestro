@@ -57,3 +57,23 @@ export interface TaskLogs {
   status: TaskStatus;
   logs: Record<string, unknown>;
 }
+
+export interface ProjectInfo {
+  config: {
+    workingDir: string;
+    gitRemote?: string;
+    defaultBranch: string;
+    agents?: string[];
+    orchestratorAgent: string;
+    maxRetries: number;
+    timeout: number;
+  };
+  hasSoul: boolean;
+  soulSize: number;
+  sharedContextSize: number;
+}
+
+export interface ProjectAgentInfo {
+  name: string;
+  description: string;
+}

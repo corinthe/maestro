@@ -1,4 +1,4 @@
-import type { Task, TaskStatus, AgentSummary, AgentTemplate, TaskLogs } from "../types/task";
+import type { Task, TaskStatus, AgentSummary, AgentTemplate, TaskLogs, ProjectInfo, ProjectAgentInfo } from "../types/task";
 
 export class ApiError extends Error {
   constructor(
@@ -83,4 +83,24 @@ export function fetchAgents(): Promise<AgentSummary[]> {
 
 export function fetchAgent(name: string): Promise<AgentTemplate> {
   return request<AgentTemplate>(`/api/agents/${name}`);
+}
+
+export function fetchProjectInfo(): Promise<ProjectInfo> {
+  return request<ProjectInfo>("/api/project");
+}
+
+export async function fetchProjectSoul(): Promise<string> {
+  const response = await fetch("/api/project/soul");
+  return response.text();
+}
+
+export function updateProjectConfig(config: Record<string, unknown>): Promise<{ config: ProjectInfo["config"] }> {
+  return request<{ config: ProjectInfo["config"] }>("/api/project/config", {
+    method: "PUT",
+    body: JSON.stringify(config),
+  });
+}
+
+export function fetchProjectAgents(): Promise<ProjectAgentInfo[]> {
+  return request<ProjectAgentInfo[]>("/api/project/agents");
 }
