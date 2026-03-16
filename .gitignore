@@ -4,3 +4,6 @@ dist/
 *.sqlite
 .env
 .env.*
+*.db-shm
+*.db-wal
+.mcp.json
