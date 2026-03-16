@@ -11,6 +11,7 @@ import { Worker } from "./domain/orchestration/worker.js";
 import { ClaudeCliProvider } from "./infra/llm/claude-cli-provider.js";
 import { SqliteTaskRepository } from "./infra/sqlite/sqlite-task-repository.js";
 import { createDatabase } from "./infra/sqlite/database.js";
+import { FileSystemProjectLoader } from "./infra/filesystem/filesystem-project-loader.js";
 
 const PORT = Number(process.env.PORT ?? 4000);
 const AGENTS_DIR = process.env.AGENTS_DIR ?? join(process.cwd(), "agents");
@@ -25,6 +26,7 @@ const eventBus = new InMemoryEventBus();
 const llmProvider = new ClaudeCliProvider();
 const gitService = new CliGitService(WORKING_DIR);
 const taskRepository = new SqliteTaskRepository(db);
+const projectLoader = new FileSystemProjectLoader();
 
 // Worker
 const worker = new Worker({
@@ -35,10 +37,11 @@ const worker = new Worker({
   gitService,
   eventBus,
   workingDir: WORKING_DIR,
+  projectLoader,
 });
 
 // App
-const app = createApp({ db, agentRegistry, taskQueue, worker });
+const app = createApp({ db, agentRegistry, projectLoader, taskQueue, worker, workingDir: WORKING_DIR });
 const httpServer = createServer(app);
 
 // WebSocket

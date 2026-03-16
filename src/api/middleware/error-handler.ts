@@ -38,6 +38,8 @@ function getHttpStatus(code: string): number {
     case "VALIDATION_ERROR":
     case "AGENT_REGISTRY_ERROR":
     case "INVALID_PLAN":
+    case "PROJECT_CONFIG_ERROR":
+    case "PROJECT_CONFIG_LOCKED":
       return 400;
     case "PLAN_EXECUTION_ERROR":
     case "GIT_ERROR":

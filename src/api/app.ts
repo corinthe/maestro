@@ -5,18 +5,22 @@ import Database from "better-sqlite3";
 import { createTaskRoutes } from "./routes/task-routes.js";
 import { createAgentRoutes } from "./routes/agent-routes.js";
 import { createOrchestrationRoutes } from "./routes/orchestration-routes.js";
+import { createProjectRoutes } from "./routes/project-routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { SqliteTaskRepository } from "../infra/sqlite/sqlite-task-repository.js";
 import { runMigrations } from "../infra/sqlite/database.js";
 import type { AgentRegistry } from "../domain/agent/agent-registry.js";
+import type { ProjectLoader } from "../domain/project/project-loader.js";
 import type { TaskQueue } from "../domain/orchestration/task-queue.js";
 import type { Worker } from "../domain/orchestration/worker.js";
 
 export interface AppDependencies {
   db?: Database.Database;
   agentRegistry?: AgentRegistry;
+  projectLoader?: ProjectLoader;
   taskQueue?: TaskQueue;
   worker?: Worker;
+  workingDir?: string;
 }
 
 export function createApp(deps: AppDependencies = {}): express.Application {
@@ -43,6 +47,15 @@ export function createApp(deps: AppDependencies = {}): express.Application {
       taskRepository,
       taskQueue: deps.taskQueue,
       worker: deps.worker,
+    }));
+  }
+
+  if (deps.projectLoader && deps.agentRegistry) {
+    app.use("/api/project", createProjectRoutes({
+      projectLoader: deps.projectLoader,
+      agentRegistry: deps.agentRegistry,
+      taskRepository,
+      workingDir: deps.workingDir ?? process.cwd(),
     }));
   }
 
