@@ -61,6 +61,19 @@ export function updateTask(
   });
 }
 
+export async function deleteTask(id: string): Promise<void> {
+  const response = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    const body = await response.json();
+    throw new ApiError(
+      body.message ?? "Erreur inconnue",
+      body.code ?? "UNKNOWN_ERROR",
+      response.status,
+      body.suggestion,
+    );
+  }
+}
+
 export function analyzeTask(id: string): Promise<Task> {
   return request<Task>(`/api/tasks/${id}/analyze`, { method: "POST" });
 }

@@ -179,6 +179,41 @@ describe("API /api/tasks", () => {
     });
   });
 
+  describe("DELETE /api/tasks/:id", () => {
+    it("doit supprimer une tache existante", async () => {
+      const createRes = await request(app)
+        .post("/api/tasks")
+        .send({ title: "A supprimer", description: "Desc" });
+      const taskId = createRes.body.id;
+
+      const res = await request(app).delete(`/api/tasks/${taskId}`);
+      expect(res.status).toBe(204);
+
+      const getRes = await request(app).get(`/api/tasks/${taskId}`);
+      expect(getRes.status).toBe(404);
+    });
+
+    it("doit retourner 404 si la tache n'existe pas", async () => {
+      const res = await request(app).delete("/api/tasks/inexistant");
+      expect(res.status).toBe(404);
+      expect(res.body.code).toBe("TASK_NOT_FOUND");
+    });
+
+    it("doit refuser la suppression d'une tache en cours d'execution", async () => {
+      const createRes = await request(app)
+        .post("/api/tasks")
+        .send({ title: "En cours", description: "Desc" });
+      const taskId = createRes.body.id;
+
+      // Passer en analyzing
+      await request(app).put(`/api/tasks/${taskId}`).send({ status: "analyzing" });
+
+      const res = await request(app).delete(`/api/tasks/${taskId}`);
+      expect(res.status).toBe(409);
+      expect(res.body.code).toBe("TASK_DELETE_FORBIDDEN");
+    });
+  });
+
   describe("GET /api/health", () => {
     it("doit retourner ok", async () => {
       const res = await request(app).get("/api/health");

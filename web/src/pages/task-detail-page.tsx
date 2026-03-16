@@ -5,7 +5,7 @@ import { useTaskEvents } from "../hooks/use-task-events";
 import { useStreamingOutput } from "../hooks/use-streaming-output";
 import { StatusBadge } from "../components/status-badge";
 import { StreamingViewer } from "../components/streaming-viewer";
-import { analyzeTask, approveTask, cancelTask } from "../services/api-client";
+import { analyzeTask, approveTask, cancelTask, deleteTask } from "../services/api-client";
 import type { ExecutionPlan } from "../types/task";
 
 export function TaskDetailPage(): React.JSX.Element {
@@ -43,6 +43,7 @@ export function TaskDetailPage(): React.JSX.Element {
   const canAnalyze = task.status === "inbox";
   const canApprove = task.status === "ready";
   const canCancel = task.status === "running" || task.status === "analyzing";
+  const canDelete = task.status !== "running" && task.status !== "analyzing";
 
   async function handleAnalyze(): Promise<void> {
     setActionLoading(true);
@@ -76,6 +77,17 @@ export function TaskDetailPage(): React.JSX.Element {
     } catch {
       // Error will be visible via refetch
     } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDelete(): Promise<void> {
+    if (!confirm("Supprimer cette tache ? Cette action est irreversible.")) return;
+    setActionLoading(true);
+    try {
+      await deleteTask(task!.id);
+      navigate("/");
+    } catch {
       setActionLoading(false);
     }
   }
@@ -125,6 +137,15 @@ export function TaskDetailPage(): React.JSX.Element {
               disabled={actionLoading}
             >
               Annuler
+            </button>
+          )}
+          {canDelete && (
+            <button
+              className="btn btn-danger"
+              onClick={handleDelete}
+              disabled={actionLoading}
+            >
+              Supprimer
             </button>
           )}
         </div>

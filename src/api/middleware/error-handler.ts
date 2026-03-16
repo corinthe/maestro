@@ -35,6 +35,8 @@ function getHttpStatus(code: string): number {
       return 404;
     case "TASK_INVALID_TRANSITION":
       return 422;
+    case "TASK_DELETE_FORBIDDEN":
+      return 409;
     case "VALIDATION_ERROR":
     case "AGENT_REGISTRY_ERROR":
     case "INVALID_PLAN":

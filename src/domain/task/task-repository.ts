@@ -7,4 +7,5 @@ export interface TaskRepository {
   findAll(): Task[];
   findByStatus(status: TaskStatus): Task[];
   update(task: Task): Task;
+  delete(id: string): boolean;
 }

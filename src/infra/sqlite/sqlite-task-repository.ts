@@ -100,4 +100,12 @@ export class SqliteTaskRepository implements TaskRepository {
 
     return task;
   }
+
+  delete(id: string): boolean {
+    const result = this.db
+      .prepare("DELETE FROM tasks WHERE id = ?")
+      .run(id);
+
+    return result.changes > 0;
+  }
 }

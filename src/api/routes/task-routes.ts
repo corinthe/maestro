@@ -104,5 +104,29 @@ export function createTaskRoutes(taskRepository: TaskRepository): Router {
     }
   });
 
+  router.delete("/:id", (req, res, next) => {
+    try {
+      const task = taskRepository.findById(req.params.id);
+      if (!task) {
+        throw new TaskNotFoundError(req.params.id);
+      }
+
+      if (task.status === "running" || task.status === "analyzing") {
+        throw new MaestroError(
+          `Impossible de supprimer la tache "${req.params.id}" en statut "${task.status}"`,
+          "TASK_DELETE_FORBIDDEN",
+          { taskId: req.params.id, status: task.status },
+          "Annulez la tache avant de la supprimer"
+        );
+      }
+
+      taskRepository.delete(req.params.id);
+      logger.info({ taskId: req.params.id }, "Tache supprimee");
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }
