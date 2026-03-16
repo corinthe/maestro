@@ -40,7 +40,7 @@ export function createTaskRoutes(taskRepository: TaskRepository): Router {
           "Parametre de filtre invalide",
           "VALIDATION_ERROR",
           { errors: parsed.error.flatten().fieldErrors },
-          `Statuts valides : ${statusQuerySchema.shape.status.options}`
+          `Statuts valides : ${statusQuerySchema.shape.status.unwrap().options}`
         );
       }
 

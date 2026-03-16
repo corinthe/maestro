@@ -31,11 +31,19 @@ export function errorHandler(
 function getHttpStatus(code: string): number {
   switch (code) {
     case "TASK_NOT_FOUND":
+    case "AGENT_NOT_FOUND":
       return 404;
     case "TASK_INVALID_TRANSITION":
       return 422;
     case "VALIDATION_ERROR":
+    case "AGENT_REGISTRY_ERROR":
+    case "INVALID_PLAN":
       return 400;
+    case "PLAN_EXECUTION_ERROR":
+    case "GIT_ERROR":
+      return 500;
+    case "GIT_BRANCH_EXISTS":
+      return 409;
     default:
       return 400;
   }

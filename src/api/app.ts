@@ -1,12 +1,22 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import express from "express";
 import Database from "better-sqlite3";
 import { createTaskRoutes } from "./routes/task-routes.js";
+import { createAgentRoutes } from "./routes/agent-routes.js";
+import { createOrchestrationRoutes } from "./routes/orchestration-routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { SqliteTaskRepository } from "../infra/sqlite/sqlite-task-repository.js";
 import { runMigrations } from "../infra/sqlite/database.js";
+import type { AgentRegistry } from "../domain/agent/agent-registry.js";
+import type { TaskQueue } from "../domain/orchestration/task-queue.js";
+import type { Worker } from "../domain/orchestration/worker.js";
 
 export interface AppDependencies {
   db?: Database.Database;
+  agentRegistry?: AgentRegistry;
+  taskQueue?: TaskQueue;
+  worker?: Worker;
 }
 
 export function createApp(deps: AppDependencies = {}): express.Application {
@@ -24,7 +34,32 @@ export function createApp(deps: AppDependencies = {}): express.Application {
 
   app.use("/api/tasks", createTaskRoutes(taskRepository));
 
+  if (deps.agentRegistry) {
+    app.use("/api/agents", createAgentRoutes(deps.agentRegistry));
+  }
+
+  if (deps.taskQueue && deps.worker) {
+    app.use("/api/tasks", createOrchestrationRoutes({
+      taskRepository,
+      taskQueue: deps.taskQueue,
+      worker: deps.worker,
+    }));
+  }
+
   app.use(errorHandler);
+
+  // Serving statique du frontend en production
+  const serveStatic = process.env.SERVE_STATIC !== "false";
+  const webDistPath = join(process.cwd(), "web", "dist");
+
+  if (serveStatic && existsSync(webDistPath)) {
+    app.use(express.static(webDistPath));
+
+    // SPA fallback: toute route non-API retourne index.html
+    app.get("*", (_req, res) => {
+      res.sendFile(join(webDistPath, "index.html"));
+    });
+  }
 
   return app;
 }

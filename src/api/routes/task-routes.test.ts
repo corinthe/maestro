@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
 import Database from "better-sqlite3";
 import { createApp } from "../app.js";
-import type { Express } from "express";
+import type express from "express";
 
 describe("API /api/tasks", () => {
-  let app: Express;
+  let app: express.Application;
 
   beforeEach(() => {
     const db = new Database(":memory:");
