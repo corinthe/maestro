@@ -4,6 +4,9 @@ import type { TaskRepository } from "../task/task-repository.js";
 import type { AgentRegistry } from "../agent/agent-registry.js";
 import type { LLMProvider } from "../agent/llm-provider.js";
 import type { GitService } from "../git/git-service.js";
+import type { ProjectLoader } from "../project/project-loader.js";
+import type { ProjectContext } from "../project/project-context.js";
+import { buildAgentPrompt } from "../project/build-agent-prompt.js";
 import type { TaskQueue } from "./task-queue.js";
 import type { EventBus } from "./events.js";
 import type { ExecutionPlan } from "./execution-plan.js";
@@ -21,6 +24,7 @@ export interface WorkerDependencies {
   gitService: GitService;
   eventBus: EventBus;
   workingDir: string;
+  projectLoader?: ProjectLoader;
   orchestratorAgent?: string;
   maxRetries?: number;
   pollIntervalMs?: number;
@@ -29,7 +33,8 @@ export interface WorkerDependencies {
 export class Worker {
   private running = false;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly deps: Required<WorkerDependencies>;
+  private readonly deps: Required<Omit<WorkerDependencies, "projectLoader">> & { projectLoader?: ProjectLoader };
+  private projectContext: ProjectContext | null = null;
 
   constructor(deps: WorkerDependencies) {
     this.deps = {
@@ -44,7 +49,20 @@ export class Worker {
     if (this.running) return;
     this.running = true;
     logger.info("Worker demarre");
-    this.poll();
+    this.loadProjectContext().then(() => this.poll());
+  }
+
+  private async loadProjectContext(): Promise<void> {
+    if (!this.deps.projectLoader) return;
+    try {
+      this.projectContext = await this.deps.projectLoader.loadContext(this.deps.workingDir);
+      logger.info(
+        { hasSoul: this.projectContext.soul.length > 0, sharedSize: this.projectContext.sharedContext.length },
+        "Contexte projet charge par le worker"
+      );
+    } catch (error) {
+      logger.warn({ error: (error as Error).message }, "Impossible de charger le contexte projet, le worker continue sans");
+    }
   }
 
   stop(): void {
@@ -205,6 +223,7 @@ export class Worker {
     const { agentRegistry, llmProvider, workingDir, orchestratorAgent, maxRetries } = this.deps;
 
     const template = await agentRegistry.load(orchestratorAgent);
+    const systemPrompt = this.buildSystemPrompt(template.content);
     const prompt = `Analyse cette tache et genere un plan d'execution en JSON:\n\nTitre: ${task.title}\nDescription: ${task.description}`;
 
     let lastError: Error | null = null;
@@ -213,7 +232,7 @@ export class Worker {
       logger.info({ taskId: task.id, attempt, maxRetries }, "Appel a l'orchestrateur");
 
       const response = await llmProvider.chat(
-        template.content,
+        systemPrompt,
         [{ role: "user", content: prompt }],
         workingDir,
         {
@@ -250,6 +269,7 @@ export class Worker {
     const { agentRegistry, llmProvider, workingDir, maxRetries } = this.deps;
 
     const template = await agentRegistry.load(agentName);
+    const systemPrompt = this.buildSystemPrompt(template.content);
     const prompt = `Tache principale: ${task.title}\n\nEtape a realiser: ${stepTask}`;
 
     let lastError: Error | null = null;
@@ -258,7 +278,7 @@ export class Worker {
       logger.info({ taskId: task.id, agent: agentName, attempt }, "Execution de l'agent");
 
       const response = await llmProvider.chat(
-        template.content,
+        systemPrompt,
         [{ role: "user", content: prompt }],
         workingDir,
         {
@@ -304,6 +324,11 @@ export class Worker {
     } catch (error) {
       logger.error({ taskId: task.id, error: (error as Error).message }, "Impossible de marquer la tache comme echouee");
     }
+  }
+
+  private buildSystemPrompt(templateContent: string): string {
+    if (!this.projectContext) return templateContent;
+    return buildAgentPrompt(templateContent, this.projectContext.soul, this.projectContext.sharedContext);
   }
 
   private emitEvent(type: Parameters<EventBus["emit"]>[0]["type"], taskId: string, data: Record<string, unknown>): void {
