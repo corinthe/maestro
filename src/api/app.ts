@@ -8,11 +8,13 @@ import { createOrchestrationRoutes } from "./routes/orchestration-routes.js";
 import { createProjectRoutes } from "./routes/project-routes.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { SqliteTaskRepository } from "../infra/sqlite/sqlite-task-repository.js";
+import { SqliteExecutionRepository } from "../infra/sqlite/sqlite-execution-repository.js";
 import { runMigrations } from "../infra/sqlite/database.js";
 import type { AgentRegistry } from "../domain/agent/agent-registry.js";
 import type { ProjectLoader } from "../domain/project/project-loader.js";
 import type { TaskQueue } from "../domain/orchestration/task-queue.js";
 import type { Worker } from "../domain/orchestration/worker.js";
+import type { EventBus } from "../domain/orchestration/events.js";
 
 export interface AppDependencies {
   db?: Database.Database;
@@ -21,6 +23,7 @@ export interface AppDependencies {
   taskQueue?: TaskQueue;
   worker?: Worker;
   workingDir?: string;
+  eventBus?: EventBus;
 }
 
 export function createApp(deps: AppDependencies = {}): express.Application {
@@ -28,6 +31,7 @@ export function createApp(deps: AppDependencies = {}): express.Application {
   runMigrations(db);
 
   const taskRepository = new SqliteTaskRepository(db);
+  const executionRepository = new SqliteExecutionRepository(db);
 
   const app = express();
   app.use(express.json());
@@ -47,6 +51,9 @@ export function createApp(deps: AppDependencies = {}): express.Application {
       taskRepository,
       taskQueue: deps.taskQueue,
       worker: deps.worker,
+      eventBus: deps.eventBus,
+      executionRepository,
+      agentRegistry: deps.agentRegistry,
     }));
   }
 

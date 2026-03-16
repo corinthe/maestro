@@ -21,3 +21,36 @@ export class PlanExecutionError extends MaestroError {
     );
   }
 }
+
+export class ExecutionNotFoundError extends MaestroError {
+  constructor(executionId: string) {
+    super(
+      `Execution "${executionId}" introuvable`,
+      "EXECUTION_NOT_FOUND",
+      { executionId },
+      "Verifiez l'identifiant de l'execution"
+    );
+  }
+}
+
+export class StepNotRetryableError extends MaestroError {
+  constructor(taskId: string, stepOrder: number, currentStatus: string) {
+    super(
+      `L'etape ${stepOrder} de la tache "${taskId}" ne peut pas etre relancee (statut: ${currentStatus})`,
+      "STEP_NOT_RETRYABLE",
+      { taskId, stepOrder, currentStatus },
+      "Seules les etapes en statut 'failed' peuvent etre relancees"
+    );
+  }
+}
+
+export class PlanNotEditableError extends MaestroError {
+  constructor(taskId: string, currentStatus: string) {
+    super(
+      `Le plan de la tache "${taskId}" ne peut pas etre modifie (statut: ${currentStatus})`,
+      "PLAN_NOT_EDITABLE",
+      { taskId, currentStatus },
+      "Le plan ne peut etre modifie que quand la tache est en statut 'ready'"
+    );
+  }
+}

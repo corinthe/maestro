@@ -10,6 +10,9 @@ import { buildAgentPrompt } from "../project/build-agent-prompt.js";
 import type { TaskQueue } from "./task-queue.js";
 import type { EventBus } from "./events.js";
 import type { ExecutionPlan } from "./execution-plan.js";
+import type { ExecutionRepository } from "./execution-repository.js";
+import type { TaskExecution } from "./task-execution.js";
+import { createExecution, updateStepStatus, isExecutionComplete } from "./task-execution.js";
 import { parsePlan } from "./parse-plan.js";
 import { getNextSteps } from "./get-next-steps.js";
 import { isPlanComplete } from "./is-plan-complete.js";
@@ -25,6 +28,7 @@ export interface WorkerDependencies {
   eventBus: EventBus;
   workingDir: string;
   projectLoader?: ProjectLoader;
+  executionRepository?: ExecutionRepository;
   orchestratorAgent?: string;
   maxRetries?: number;
   pollIntervalMs?: number;
@@ -33,7 +37,10 @@ export interface WorkerDependencies {
 export class Worker {
   private running = false;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly deps: Required<Omit<WorkerDependencies, "projectLoader">> & { projectLoader?: ProjectLoader };
+  private readonly deps: Required<Omit<WorkerDependencies, "projectLoader" | "executionRepository">> & {
+    projectLoader?: ProjectLoader;
+    executionRepository?: ExecutionRepository;
+  };
   private projectContext: ProjectContext | null = null;
 
   constructor(deps: WorkerDependencies) {
@@ -118,12 +125,9 @@ export class Worker {
       logger.info({ taskId: task.id, steps: plan.steps.length }, "Plan genere, en attente de validation");
 
       // Phase 3: Attendre la validation (approved)
-      // Le worker ne bloque pas — il re-verifie plus tard.
-      // L'API met la tache en "approved" et la remet dans la queue.
-      // Ici on verifie si la tache est deja approved (re-entree apres approbation)
       const currentTask = this.deps.taskRepository.findById(task.id);
       if (!currentTask || currentTask.status !== "approved") {
-        return; // On attend que l'utilisateur approuve via l'API
+        return;
       }
 
       await this.executeApprovedTask(currentTask, plan);
@@ -137,7 +141,6 @@ export class Worker {
   async executeApprovedTask(task: Task, plan?: ExecutionPlan): Promise<void> {
     const startTime = Date.now();
 
-    // Recharger le plan si non fourni
     if (!plan && task.plan) {
       plan = parsePlan(task.plan);
     }
@@ -145,13 +148,77 @@ export class Worker {
       throw new PlanExecutionError(0, "worker", "Aucun plan disponible pour cette tache");
     }
 
+    // Create a TaskExecution to track this run
+    const execution = createExecution(task.id, plan);
+    if (this.deps.executionRepository) {
+      this.deps.executionRepository.create(execution);
+      this.emitEvent("task:execution_started", task.id, { executionId: execution.id });
+    }
+
+    await this.runExecution(task, plan, execution, startTime);
+  }
+
+  async executeWithExecution(task: Task, execution: TaskExecution): Promise<void> {
+    const startTime = Date.now();
+    await this.runExecution(task, execution.plan, execution, startTime);
+  }
+
+  async reanalyzeWithAnswers(
+    task: Task,
+    answers: Array<{ question: string; answer: string }>,
+  ): Promise<void> {
+    const startTime = Date.now();
+    logger.info({ taskId: task.id, answersCount: answers.length }, "Re-analyse avec reponses");
+
     try {
-      // Passer en running
+      const plan = await this.analyzeTask(task, answers);
+
+      const taskWithPlan = {
+        ...task,
+        plan: JSON.stringify(plan),
+        status: "ready" as const,
+        updatedAt: new Date(),
+      };
+      this.deps.taskRepository.update(taskWithPlan);
+
+      this.emitEvent("task:plan_updated", task.id, {
+        summary: plan.summary,
+        stepsCount: plan.steps.length,
+        questions: plan.questions,
+      });
+      this.emitEvent("task:status_changed", task.id, { from: "analyzing", to: "ready" });
+
+      logger.info({ taskId: task.id, steps: plan.steps.length, durationMs: Date.now() - startTime }, "Re-analyse terminee");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error({ taskId: task.id, error: message, durationMs: Date.now() - startTime }, "Re-analyse echouee");
+      this.failTask(task, message);
+    }
+  }
+
+  private async runExecution(
+    task: Task,
+    plan: ExecutionPlan,
+    execution: TaskExecution,
+    startTime: number,
+  ): Promise<void> {
+    let currentExecution = execution;
+
+    try {
       const runningTask = this.updateTaskStatus(task, "running");
 
-      // Phase execution: executer chaque etape du plan
       const completedSteps: number[] = [];
       const agentLogs: Record<string, string> = {};
+
+      // Collect already completed/skipped steps from previous execution
+      for (const step of currentExecution.steps) {
+        if (step.status === "completed" || step.status === "skipped") {
+          completedSteps.push(step.stepOrder);
+          if (step.output) {
+            agentLogs[`step-${step.stepOrder}-${step.agent}`] = step.output;
+          }
+        }
+      }
 
       while (!isPlanComplete(plan, completedSteps)) {
         const nextSteps = getNextSteps(plan, completedSteps);
@@ -159,31 +226,71 @@ export class Worker {
           throw new PlanExecutionError(0, "worker", "Aucune etape executable trouvee mais le plan n'est pas termine");
         }
 
-        // Executer les etapes paralleles en parallele
         const results = await Promise.all(
           nextSteps.map(async (step) => {
+            // Check if this step should be skipped (already completed in a retry)
+            const stepExec = currentExecution.steps.find((s) => s.stepOrder === step.order);
+            if (stepExec && (stepExec.status === "completed" || stepExec.status === "skipped")) {
+              return step.order;
+            }
+
+            // Update step to running
+            currentExecution = updateStepStatus(currentExecution, step.order, "running");
+            this.persistExecution(currentExecution);
+
             this.emitEvent("task:agent_started", task.id, {
               stepOrder: step.order,
               agent: step.agent,
               task: step.task,
             });
 
-            const result = await this.executeStep(task, step.agent, step.task, step.order);
+            try {
+              const feedbackPrompt = stepExec?.feedback
+                ? this.buildFeedbackPrompt(step.task, stepExec.feedback, stepExec.output)
+                : undefined;
 
-            agentLogs[`step-${step.order}-${step.agent}`] = result;
+              const result = await this.executeStep(
+                task,
+                step.agent,
+                feedbackPrompt ?? step.task,
+                step.order,
+              );
 
-            this.emitEvent("task:agent_completed", task.id, {
-              stepOrder: step.order,
-              agent: step.agent,
-              success: true,
-            });
+              agentLogs[`step-${step.order}-${step.agent}`] = result;
 
-            return step.order;
+              currentExecution = updateStepStatus(currentExecution, step.order, "completed", result);
+              this.persistExecution(currentExecution);
+
+              this.emitEvent("task:agent_completed", task.id, {
+                stepOrder: step.order,
+                agent: step.agent,
+                success: true,
+              });
+
+              return step.order;
+            } catch (error) {
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              currentExecution = updateStepStatus(currentExecution, step.order, "failed", undefined, errorMsg);
+              this.persistExecution(currentExecution);
+
+              this.emitEvent("task:agent_completed", task.id, {
+                stepOrder: step.order,
+                agent: step.agent,
+                success: false,
+                error: errorMsg,
+              });
+
+              throw error;
+            }
           })
         );
 
         completedSteps.push(...results);
       }
+
+      // Mark execution as completed
+      currentExecution = { ...currentExecution, status: "completed", completedAt: new Date() };
+      this.persistExecution(currentExecution);
 
       // Phase finalisation: git
       const branchName = `feature/task-${task.id.substring(0, 8)}`;
@@ -196,7 +303,6 @@ export class Worker {
         branchName
       );
 
-      // Mettre a jour la tache
       const reviewTask: Task = {
         ...runningTask,
         status: "review",
@@ -214,17 +320,32 @@ export class Worker {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.error({ taskId: task.id, error: message, durationMs: Date.now() - startTime }, "Execution de la tache echouee");
+
+      currentExecution = { ...currentExecution, status: "failed", completedAt: new Date() };
+      this.persistExecution(currentExecution);
+
       this.failTask(task, message);
       throw error;
     }
   }
 
-  private async analyzeTask(task: Task): Promise<ExecutionPlan> {
+  private async analyzeTask(
+    task: Task,
+    answers?: Array<{ question: string; answer: string }>,
+  ): Promise<ExecutionPlan> {
     const { agentRegistry, llmProvider, workingDir, orchestratorAgent, maxRetries } = this.deps;
 
     const template = await agentRegistry.load(orchestratorAgent);
     const systemPrompt = this.buildSystemPrompt(template.content);
-    const prompt = `Analyse cette tache et genere un plan d'execution en JSON:\n\nTitre: ${task.title}\nDescription: ${task.description}`;
+
+    let prompt = `Analyse cette tache et genere un plan d'execution en JSON:\n\nTitre: ${task.title}\nDescription: ${task.description}`;
+
+    if (answers && answers.length > 0) {
+      prompt += "\n\n## Reponses aux questions\n";
+      for (const { question, answer } of answers) {
+        prompt += `Q: ${question}\nR: ${answer}\n\n`;
+      }
+    }
 
     let lastError: Error | null = null;
 
@@ -253,7 +374,6 @@ export class Worker {
       }
 
       try {
-        // Extraire le JSON du contenu (peut etre entoure de markdown)
         const jsonContent = extractJson(response.content);
         return parsePlan(jsonContent);
       } catch (error) {
@@ -308,6 +428,18 @@ export class Worker {
     throw new PlanExecutionError(0, agentName, lastError?.message ?? "Echec apres toutes les tentatives");
   }
 
+  private buildFeedbackPrompt(stepTask: string, feedback: string, previousOutput: string | null): string {
+    let prompt = stepTask;
+    prompt += "\n\n## Tentative precedente";
+    prompt += "\nL'execution precedente a echoue. Voici le feedback du developpeur :";
+    prompt += `\n${feedback}`;
+    if (previousOutput) {
+      prompt += "\n\nResultat de la tentative precedente :";
+      prompt += `\n${previousOutput}`;
+    }
+    return prompt;
+  }
+
   private updateTaskStatus(task: Task, newStatus: TaskStatus): Task {
     const updated: Task = { ...task, status: newStatus, updatedAt: new Date() };
     this.deps.taskRepository.update(updated);
@@ -331,6 +463,15 @@ export class Worker {
     return buildAgentPrompt(templateContent, this.projectContext.soul, this.projectContext.sharedContext);
   }
 
+  private persistExecution(execution: TaskExecution): void {
+    if (!this.deps.executionRepository) return;
+    try {
+      this.deps.executionRepository.update(execution);
+    } catch (error) {
+      logger.warn({ executionId: execution.id, error: (error as Error).message }, "Impossible de persister l'execution");
+    }
+  }
+
   private emitEvent(type: Parameters<EventBus["emit"]>[0]["type"], taskId: string, data: Record<string, unknown>): void {
     this.deps.eventBus.emit({
       type,
@@ -342,13 +483,11 @@ export class Worker {
 }
 
 function extractJson(content: string): string {
-  // Essayer de trouver un bloc JSON dans du markdown
   const jsonBlockMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
   if (jsonBlockMatch) {
     return jsonBlockMatch[1].trim();
   }
 
-  // Essayer de trouver un objet JSON brut
   const jsonMatch = content.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     return jsonMatch[0];

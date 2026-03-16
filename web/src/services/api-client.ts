@@ -1,4 +1,5 @@
-import type { Task, TaskStatus, AgentSummary, AgentTemplate, TaskLogs, ProjectInfo, ProjectAgentInfo } from "../types/task";
+import type { Task, TaskStatus, AgentSummary, AgentTemplate, TaskLogs, ProjectInfo, ProjectAgentInfo, ExecutionPlan } from "../types/task";
+import type { TaskExecution } from "../types/execution";
 
 export class ApiError extends Error {
   constructor(
@@ -116,4 +117,54 @@ export function updateProjectConfig(config: Record<string, unknown>): Promise<{ 
 
 export function fetchProjectAgents(): Promise<ProjectAgentInfo[]> {
   return request<ProjectAgentInfo[]>("/api/project/agents");
+}
+
+// Feature 6: Execution & feedback endpoints
+
+export function updatePlan(id: string, plan: ExecutionPlan): Promise<Task> {
+  // Convert to snake_case for the API
+  const body = {
+    summary: plan.summary,
+    steps: plan.steps.map((s) => ({
+      order: s.order,
+      agent: s.agent,
+      task: s.task,
+      depends_on: s.dependsOn,
+      parallel: s.parallel,
+    })),
+    files_impacted: plan.filesImpacted,
+    questions: plan.questions,
+  };
+  return request<Task>(`/api/tasks/${id}/plan`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchExecutions(taskId: string): Promise<TaskExecution[]> {
+  return request<TaskExecution[]>(`/api/tasks/${taskId}/executions`);
+}
+
+export function retryStep(taskId: string, stepOrder: number, feedback?: string): Promise<TaskExecution> {
+  return request<TaskExecution>(`/api/tasks/${taskId}/steps/${stepOrder}/retry`, {
+    method: "POST",
+    body: JSON.stringify({ feedback }),
+  });
+}
+
+export function retryTask(taskId: string, feedback?: string): Promise<TaskExecution> {
+  return request<TaskExecution>(`/api/tasks/${taskId}/retry`, {
+    method: "POST",
+    body: JSON.stringify({ feedback }),
+  });
+}
+
+export function answerQuestions(
+  taskId: string,
+  answers: Array<{ question: string; answer: string }>,
+): Promise<Task> {
+  return request<Task>(`/api/tasks/${taskId}/answer`, {
+    method: "POST",
+    body: JSON.stringify({ answers }),
+  });
 }

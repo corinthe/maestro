@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useTask } from "../hooks/use-task";
 import { useTaskEvents } from "../hooks/use-task-events";
 import { useStreamingOutput } from "../hooks/use-streaming-output";
 import { StatusBadge } from "../components/status-badge";
 import { StreamingViewer } from "../components/streaming-viewer";
-import { analyzeTask, approveTask, cancelTask, deleteTask } from "../services/api-client";
+import { ExecutionView } from "../components/execution-view";
+import { PlanEditor } from "../components/plan-editor";
+import { QuestionAnswerForm } from "../components/question-answer-form";
+import { analyzeTask, approveTask, cancelTask, deleteTask, fetchExecutions } from "../services/api-client";
 import type { ExecutionPlan } from "../types/task";
+import type { TaskExecution } from "../types/execution";
 
 export function TaskDetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +19,29 @@ export function TaskDetailPage(): React.JSX.Element {
   const events = useTaskEvents(id!);
   const streaming = useStreamingOutput(id!);
   const [actionLoading, setActionLoading] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(false);
+  const [executions, setExecutions] = useState<TaskExecution[]>([]);
+  const [activeTab, setActiveTab] = useState<"plan" | "executions" | "timeline">("plan");
+
+  const loadExecutions = useCallback(async () => {
+    try {
+      const data = await fetchExecutions(id!);
+      setExecutions(data);
+    } catch {
+      // Ignore — endpoint may not exist if no executions yet
+    }
+  }, [id]);
+
+  useEffect(() => {
+    loadExecutions();
+  }, [loadExecutions]);
+
+  // Refresh executions when task status changes
+  useEffect(() => {
+    if (task) {
+      loadExecutions();
+    }
+  }, [task?.status, loadExecutions]);
 
   if (loading) {
     return (
@@ -44,6 +71,7 @@ export function TaskDetailPage(): React.JSX.Element {
   const canApprove = task.status === "ready";
   const canCancel = task.status === "running" || task.status === "analyzing";
   const canDelete = task.status !== "running" && task.status !== "analyzing";
+  const hasQuestions = plan && plan.questions.length > 0 && task.status === "ready";
 
   async function handleAnalyze(): Promise<void> {
     setActionLoading(true);
@@ -90,6 +118,20 @@ export function TaskDetailPage(): React.JSX.Element {
     } catch {
       setActionLoading(false);
     }
+  }
+
+  function handlePlanSaved(): void {
+    setEditingPlan(false);
+    refetch();
+  }
+
+  function handleAnswersSubmitted(): void {
+    refetch();
+  }
+
+  function handleRetry(): void {
+    refetch();
+    loadExecutions();
   }
 
   return (
@@ -160,55 +202,128 @@ export function TaskDetailPage(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Plan */}
+        {/* Tabs for Plan / Executions / Timeline */}
         {plan && (
           <div className="section">
-            <div className="section-header">Plan d'execution</div>
+            <div className="section-header" style={{ display: "flex", gap: 0 }}>
+              <button
+                className={`tab-btn ${activeTab === "plan" ? "tab-active" : ""}`}
+                onClick={() => setActiveTab("plan")}
+              >
+                Plan
+              </button>
+              <button
+                className={`tab-btn ${activeTab === "executions" ? "tab-active" : ""}`}
+                onClick={() => setActiveTab("executions")}
+              >
+                Executions{executions.length > 0 ? ` (${executions.length})` : ""}
+              </button>
+              <button
+                className={`tab-btn ${activeTab === "timeline" ? "tab-active" : ""}`}
+                onClick={() => setActiveTab("timeline")}
+              >
+                Timeline
+              </button>
+            </div>
             <div className="section-body">
-              <p style={{ marginBottom: 12, color: "var(--color-text-secondary)", fontSize: 14 }}>
-                {plan.summary}
-              </p>
-              <div className="plan-steps">
-                {plan.steps.map((step) => (
-                  <div key={step.order} className="plan-step">
-                    <div className="step-order">{step.order}</div>
-                    <div className="step-content">
-                      <div className="step-agent">{step.agent}</div>
-                      <div className="step-task">{step.task}</div>
-                      {step.dependsOn.length > 0 && (
-                        <div className="step-deps">
-                          Depend de: etape{step.dependsOn.length > 1 ? "s" : ""}{" "}
-                          {step.dependsOn.join(", ")}
+              {activeTab === "plan" && (
+                <>
+                  {editingPlan ? (
+                    <PlanEditor
+                      taskId={task.id}
+                      plan={plan}
+                      onSave={handlePlanSaved}
+                      onCancel={() => setEditingPlan(false)}
+                    />
+                  ) : (
+                    <>
+                      {task.status === "ready" && (
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => setEditingPlan(true)}
+                          style={{ marginBottom: 8, fontSize: 12 }}
+                        >
+                          Editer le plan
+                        </button>
+                      )}
+                      <p style={{ marginBottom: 12, color: "var(--color-text-secondary)", fontSize: 14 }}>
+                        {plan.summary}
+                      </p>
+                      <div className="plan-steps">
+                        {plan.steps.map((step) => (
+                          <div key={step.order} className="plan-step">
+                            <div className="step-order">{step.order}</div>
+                            <div className="step-content">
+                              <div className="step-agent">{step.agent}</div>
+                              <div className="step-task">{step.task}</div>
+                              {step.dependsOn.length > 0 && (
+                                <div className="step-deps">
+                                  Depend de: etape{step.dependsOn.length > 1 ? "s" : ""}{" "}
+                                  {step.dependsOn.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {plan.filesImpacted.length > 0 && (
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>
+                            Fichiers impactes
+                          </div>
+                          <div style={{ fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>
+                            {plan.filesImpacted.join(", ")}
+                          </div>
                         </div>
                       )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {activeTab === "executions" && (
+                <ExecutionView
+                  executions={executions}
+                  taskId={task.id}
+                  taskStatus={task.status}
+                  onRetry={handleRetry}
+                />
+              )}
+
+              {activeTab === "timeline" && events.length > 0 && (
+                <div className="timeline">
+                  {events.map((event, i) => (
+                    <div key={i} className="timeline-item">
+                      <span className="timeline-time">
+                        {formatTime(event.timestamp)}
+                      </span>
+                      <span className="timeline-content">
+                        {formatEventType(event.type)}
+                        {event.data?.status ? ` → ${event.data.status}` : ""}
+                        {event.data?.agentName ? ` (${event.data.agentName})` : ""}
+                        {event.data?.agent ? ` (${event.data.agent})` : ""}
+                      </span>
                     </div>
-                  </div>
-                ))}
-              </div>
-              {plan.filesImpacted.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>
-                    Fichiers impactes
-                  </div>
-                  <div style={{ fontSize: 13, fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>
-                    {plan.filesImpacted.join(", ")}
-                  </div>
+                  ))}
                 </div>
+              )}
+              {activeTab === "timeline" && events.length === 0 && (
+                <div className="text-secondary">Aucun evenement</div>
               )}
             </div>
           </div>
         )}
 
-        {/* Questions */}
-        {plan && plan.questions.length > 0 && (
+        {/* Questions with answer form */}
+        {hasQuestions && (
           <div className="section">
-            <div className="section-header">Questions</div>
+            <div className="section-header">Questions de l'orchestrateur</div>
             <div className="section-body">
-              <ul className="questions-list">
-                {plan.questions.map((q, i) => (
-                  <li key={i}>{q}</li>
-                ))}
-              </ul>
+              <QuestionAnswerForm
+                taskId={task.id}
+                questions={plan.questions}
+                onSubmit={handleAnswersSubmitted}
+              />
             </div>
           </div>
         )}
@@ -232,29 +347,6 @@ export function TaskDetailPage(): React.JSX.Element {
             <div className="section-header">Logs des agents</div>
             <div className="section-body">
               <div className="log-viewer">{JSON.stringify(logs, null, 2)}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Timeline */}
-        {events.length > 0 && (
-          <div className="section">
-            <div className="section-header">Timeline</div>
-            <div className="section-body">
-              <div className="timeline">
-                {events.map((event, i) => (
-                  <div key={i} className="timeline-item">
-                    <span className="timeline-time">
-                      {formatTime(event.timestamp)}
-                    </span>
-                    <span className="timeline-content">
-                      {formatEventType(event.type)}
-                      {event.data?.status ? ` → ${event.data.status}` : ""}
-                      {event.data?.agentName ? ` (${event.data.agentName})` : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -303,11 +395,14 @@ function formatEventType(type: string): string {
   const labels: Record<string, string> = {
     "task:status_changed": "Statut change",
     "task:plan_ready": "Plan pret",
+    "task:plan_updated": "Plan mis a jour",
     "task:agent_started": "Agent demarre",
     "task:agent_output": "Sortie agent",
     "task:agent_completed": "Agent termine",
     "task:pr_opened": "PR ouverte",
     "task:failed": "Echec",
+    "task:step_retried": "Etape relancee",
+    "task:execution_started": "Execution demarree",
   };
   return labels[type] ?? type;
 }

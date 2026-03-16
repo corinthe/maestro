@@ -14,18 +14,20 @@
   --color-border: #2a2e3a;
   --color-text: #e4e6eb;
   --color-text-secondary: #8b8fa3;
-  --color-primary: #6c8cff;
-  --color-primary-hover: #5a7af0;
+  --color-primary: #84cc16;
+  --color-primary-hover: #65a30d;
   --color-success: #4ade80;
   --color-warning: #fbbf24;
   --color-error: #f87171;
   --color-info: #60a5fa;
+  --color-danger: #f87171;
+  --color-bg-secondary: #222633;
 
   --status-inbox: #8b8fa3;
   --status-analyzing: #a78bfa;
   --status-ready: #fbbf24;
   --status-approved: #60a5fa;
-  --status-running: #6c8cff;
+  --status-running: #84cc16;
   --status-review: #f97316;
   --status-done: #4ade80;
   --status-failed: #f87171;
@@ -188,7 +190,7 @@ body {
 
 .btn-success {
   background: var(--color-success);
-  color: #0f1117;
+  color: var(--color-bg);
 }
 
 .btn-success:hover:not(:disabled) {
@@ -221,13 +223,13 @@ body {
   letter-spacing: 0.5px;
 }
 
-.badge-inbox { background: var(--status-inbox); color: #0f1117; }
-.badge-analyzing { background: var(--status-analyzing); color: #0f1117; }
-.badge-ready { background: var(--status-ready); color: #0f1117; }
-.badge-approved { background: var(--status-approved); color: #0f1117; }
+.badge-inbox { background: var(--status-inbox); color: var(--color-bg); }
+.badge-analyzing { background: var(--status-analyzing); color: var(--color-bg); }
+.badge-ready { background: var(--status-ready); color: var(--color-bg); }
+.badge-approved { background: var(--status-approved); color: var(--color-bg); }
 .badge-running { background: var(--status-running); color: white; }
-.badge-review { background: var(--status-review); color: #0f1117; }
-.badge-done { background: var(--status-done); color: #0f1117; }
+.badge-review { background: var(--status-review); color: var(--color-bg); }
+.badge-done { background: var(--status-done); color: var(--color-bg); }
 .badge-failed { background: var(--status-failed); color: white; }
 
 /* Cards */
@@ -747,13 +749,13 @@ body {
 }
 
 .badge-success {
-  background: #22c55e20;
-  color: #22c55e;
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
 }
 
 .badge-warning {
-  background: #f59e0b20;
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  color: var(--color-warning);
 }
 
 .soul-preview {
@@ -787,4 +789,101 @@ body {
 
 .agent-item strong {
   min-width: 120px;
+}
+
+/* Tabs */
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--color-text);
+}
+
+.tab-btn.tab-active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* Execution view */
+.execution-block {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.step-skipped .step-agent {
+  color: var(--color-text-secondary);
+}
+
+/* Small button variant */
+.btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.btn-warning {
+  background: var(--color-warning);
+  color: var(--color-bg);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn-warning:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-warning:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Badge variants */
+.badge-info {
+  background: rgba(96, 165, 250, 0.15);
+  color: var(--color-info);
+}
+
+.badge-success {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--color-success);
+}
+
+.badge-danger {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--color-error);
+}
+
+.badge-secondary {
+  background: rgba(139, 143, 163, 0.15);
+  color: var(--color-text-secondary);
+}
+
+/* Text utilities */
+.text-secondary {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+/* Background secondary */
+.color-bg-secondary {
+  background: var(--color-surface);
+}
+
+/* Question form */
+.question-form .input {
+  margin-bottom: 8px;
 }

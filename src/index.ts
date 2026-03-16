@@ -10,6 +10,7 @@ import { MaestroWebSocketServer } from "./infra/websocket/websocket-server.js";
 import { Worker } from "./domain/orchestration/worker.js";
 import { ClaudeCliProvider } from "./infra/llm/claude-cli-provider.js";
 import { SqliteTaskRepository } from "./infra/sqlite/sqlite-task-repository.js";
+import { SqliteExecutionRepository } from "./infra/sqlite/sqlite-execution-repository.js";
 import { createDatabase } from "./infra/sqlite/database.js";
 import { FileSystemProjectLoader } from "./infra/filesystem/filesystem-project-loader.js";
 
@@ -26,6 +27,7 @@ const eventBus = new InMemoryEventBus();
 const llmProvider = new ClaudeCliProvider();
 const gitService = new CliGitService(WORKING_DIR);
 const taskRepository = new SqliteTaskRepository(db);
+const executionRepository = new SqliteExecutionRepository(db);
 const projectLoader = new FileSystemProjectLoader();
 
 // Worker
@@ -38,10 +40,11 @@ const worker = new Worker({
   eventBus,
   workingDir: WORKING_DIR,
   projectLoader,
+  executionRepository,
 });
 
 // App
-const app = createApp({ db, agentRegistry, projectLoader, taskQueue, worker, workingDir: WORKING_DIR });
+const app = createApp({ db, agentRegistry, projectLoader, taskQueue, worker, workingDir: WORKING_DIR, eventBus });
 const httpServer = createServer(app);
 
 // WebSocket
