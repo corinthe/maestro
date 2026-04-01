@@ -8,6 +8,10 @@
  * - { type: "result", subtype: "success"|"error_max_turns", result, session_id, usage, total_cost_usd }
  */
 
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("parser");
+
 export type StreamEvent = {
   type: "system" | "assistant" | "user" | "result";
   subtype?: string;
@@ -25,10 +29,6 @@ export type StreamEvent = {
   summary?: string;
   raw: string;
 };
-
-import { createLogger } from "@/lib/logger";
-
-const log = createLogger("parser");
 
 export function parseStreamLine(line: string): StreamEvent | null {
   const trimmed = line.trim();

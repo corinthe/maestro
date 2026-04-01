@@ -1,57 +1,8 @@
 /**
- * Simple in-memory rate limiter.
+ * Concurrent agent spawn limiter.
  *
- * - API rate limiting: sliding window per IP
- * - Concurrent agent spawn limiting: max concurrent running agents
+ * Caps the number of simultaneously running agents to MAX_CONCURRENT_AGENTS (default 5).
  */
-import { NextResponse } from "next/server";
-import { createLogger } from "@/lib/logger";
-
-const log = createLogger("rate-limit");
-
-// --- Sliding window rate limiter ---
-
-type WindowEntry = { count: number; resetAt: number };
-
-const windows = new Map<string, WindowEntry>();
-
-/**
- * Check if a request should be rate-limited.
- * Returns null if allowed, or a 429 NextResponse if blocked.
- */
-export function checkRateLimit(
-  key: string,
-  opts: { maxRequests: number; windowSec: number }
-): NextResponse | null {
-  const now = Date.now();
-  const entry = windows.get(key);
-
-  if (!entry || now >= entry.resetAt) {
-    windows.set(key, { count: 1, resetAt: now + opts.windowSec * 1000 });
-    return null;
-  }
-
-  entry.count++;
-  if (entry.count > opts.maxRequests) {
-    log.warn("rate limit exceeded", { key, count: entry.count, maxRequests: opts.maxRequests });
-    return NextResponse.json(
-      { error: { code: "RATE_LIMITED", message: "Too many requests" } },
-      { status: 429 }
-    );
-  }
-
-  return null;
-}
-
-// Periodic cleanup of expired entries (every 5 minutes)
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of windows) {
-    if (now >= entry.resetAt) {
-      windows.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
 
 // --- Concurrent agent spawn limiter ---
 

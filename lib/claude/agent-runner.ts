@@ -113,7 +113,7 @@ export async function executeRun(req: RunRequest): Promise<string> {
       },
 
       onError(error: string) {
-        log.warn("stderr output", { runId, error: error.trim() });
+        log.debug("stderr output", { runId, error: error.trim() });
         seq++;
         runService.addRunEvent({
           runId,

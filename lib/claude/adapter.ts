@@ -31,7 +31,7 @@ export function spawnClaude(
 ): ClaudeProcess {
   const args = buildClaudeArgs(config, task);
 
-  log.info("spawning claude", { command: CLAUDE_COMMAND, args, cwd });
+  log.debug("spawning claude", { command: CLAUDE_COMMAND, args, cwd });
 
   const child = spawn(CLAUDE_COMMAND, args, {
     cwd,

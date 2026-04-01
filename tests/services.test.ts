@@ -3,15 +3,13 @@
  * Uses a temporary in-memory-like SQLite database.
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import * as schema from "@/lib/db/schema";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
 // We need to set up a temp DB before importing services (they call getDb())
 let tmpDir: string;
+let origCwd: typeof process.cwd;
 
 beforeAll(() => {
   // Create a temp .maestro directory and set it up
@@ -20,16 +18,13 @@ beforeAll(() => {
   fs.mkdirSync(maestroDir, { recursive: true });
 
   // Override working directory so getDb() finds our temp DB
-  process.env.MAESTRO_PROJECT_ROOT = tmpDir;
-  // We need to set cwd to tmpDir for getDb() to work
-  const origCwd = process.cwd;
+  origCwd = process.cwd;
   process.cwd = () => tmpDir;
-
-  // Force import of db to initialize with our temp path
-  // The getDb() singleton will use process.cwd()
 });
 
 afterAll(() => {
+  // Restore original cwd
+  process.cwd = origCwd;
   // Clean up
   if (tmpDir) {
     fs.rmSync(tmpDir, { recursive: true, force: true });

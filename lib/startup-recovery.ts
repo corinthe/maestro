@@ -2,7 +2,7 @@
  * Startup recovery — detects orphan "running"/"queued" runs left by a previous
  * crash and marks them as failed. Also resets agents stuck in "running" state.
  */
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { runs, agents } from "@/lib/db/schema";
 import { createLogger } from "@/lib/logger";
@@ -14,19 +14,11 @@ export function recoverOrphanRuns(): { recoveredRuns: number; recoveredAgents: n
   const now = new Date().toISOString();
 
   // Find runs stuck in running/queued state (no active process can own them after restart)
-  const orphanRuns = db
+  const allOrphans = db
     .select({ id: runs.id, agentId: runs.agentId, status: runs.status })
     .from(runs)
-    .where(eq(runs.status, "running"))
+    .where(or(eq(runs.status, "running"), eq(runs.status, "queued")))
     .all();
-
-  const queuedRuns = db
-    .select({ id: runs.id, agentId: runs.agentId, status: runs.status })
-    .from(runs)
-    .where(eq(runs.status, "queued"))
-    .all();
-
-  const allOrphans = [...orphanRuns, ...queuedRuns];
 
   for (const run of allOrphans) {
     db.update(runs)
