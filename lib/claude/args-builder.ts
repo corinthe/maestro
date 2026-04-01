@@ -19,9 +19,9 @@ export type RunTask = {
 
 export function buildClaudeArgs(config: AgentConfig, task: RunTask): string[] {
   const args: string[] = [
+    "--print",
     "--output-format", "stream-json",
     "--verbose",
-    "--print", "conversation",
   ];
 
   if (config.model) {
@@ -56,7 +56,8 @@ export function buildClaudeArgs(config: AgentConfig, task: RunTask): string[] {
     args.push("--resume", task.sessionId);
   }
 
-  args.push("-p", task.prompt);
+  // Prompt as positional argument (--print already enables non-interactive mode)
+  args.push(task.prompt);
 
   return args;
 }
