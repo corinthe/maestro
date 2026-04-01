@@ -110,5 +110,20 @@ src/
 - **Phase 1 (DONE)**: CLI init/dev, CRUD features/agents, UI dashboard/features/agents, services, API routes
 - **Phase 2 (DONE)**: Spawn Claude CLI (adapter, parser, agent-runner), WebSocket server (port 4201), Live view (/runs/:id), Stop/Restart
 - **Phase 3 (DONE)**: Serveur MCP interne, orchestrateur Claude, heartbeat scheduler, wakeup manuel
+- **Phase 3.5 (A FAIRE)**: Stabilisation avant nouvelles features
+  - Recovery au demarrage: detecter les runs orphelins "running" et les marquer `failed`
+  - Mutex orchestrateur: empecher les wakeups concurrents (verrou en DB ou in-memory)
+  - Validation des inputs: schema validation sur prompts, configs agents, noms/titres
+  - Logging structure: logger centralise (`lib/logger.ts`, JSON vers stdout, niveaux debug/info/warn/error, LOG_LEVEL configurable)
+    - agent-runner: run start/end, agentId, featureId, duree, statut final, exit code, erreur
+    - adapter: spawn process (PID, commande, args), stderr, timeout, kill signal
+    - orchestrator: wake trigger (heartbeat/manual), decision, assignment agent→feature, stop, erreur
+    - heartbeat: tick, skip (deja running), wake result
+    - parser: erreurs de parsing JSON invalide, ligne brute en contexte
+    - API routes: erreurs 4xx/5xx avec route, methode, body (sans donnees sensibles)
+    - services: erreurs DB (query, params), echecs CRUD
+  - Tests critiques: parser Claude, agent-runner, orchestrateur, services CRUD
+  - Purge run_events: implementer la purge apres 24h (documentee mais absente)
+  - Rate limiting: limiter les appels API et les spawns d'agents concurrents
 - **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
-- **Phase 5 (A FAIRE)**: Skills, dashboard avance, config, historique, stats, CLI avance
+- **Phase 5 (A FAIRE)**: Skills, dashboard avance (stats reelles, activite recente, features actives), config, historique, stats, CLI avance
