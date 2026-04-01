@@ -1,23 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { resourceHandler, ok, notFound } from "@/lib/api";
 import { getRun } from "@/lib/services/run-service";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function GET(request: NextRequest, { params }: RouteContext) {
-  try {
-    const { id } = await params;
-    const result = getRun(id);
-    if (!result) {
-      return NextResponse.json(
-        { error: { code: "NOT_FOUND", message: "Run not found" } },
-        { status: 404 }
-      );
-    }
-    return NextResponse.json({ data: result });
-  } catch (err) {
-    return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Failed to get run" } },
-      { status: 500 }
-    );
-  }
-}
+export const GET = resourceHandler((_req: NextRequest, id: string) => {
+  const run = getRun(id);
+  return run ? ok(run) : notFound("Run");
+});

@@ -1,89 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-type Feature = {
-  id: string;
-  key: string;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: number;
-  assigned_agent: string | null;
-  created_at: string;
-};
-
-const statusVariant: Record<string, "default" | "info" | "success" | "error"> =
-  {
-    backlog: "default",
-    in_progress: "info",
-    done: "success",
-    cancelled: "error",
-  };
-
-const statusLabel: Record<string, string> = {
-  backlog: "Backlog",
-  in_progress: "In Progress",
-  done: "Done",
-  cancelled: "Cancelled",
-};
+import { Input, Textarea } from "@/components/ui/input";
+import { useApi, apiPost } from "@/hooks/use-api";
+import { type Feature, FEATURE_STATUS_LABELS, FEATURE_STATUS_VARIANT, type FeatureStatus } from "@/lib/types";
 
 export default function FeaturesPage() {
   const router = useRouter();
-  const [features, setFeatures] = useState<Feature[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: features, loading, error, refetch } = useApi<Feature[]>("/api/features");
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-
-  async function fetchFeatures() {
-    try {
-      const res = await fetch("/api/features");
-      if (res.ok) {
-        const data = await res.json();
-        setFeatures(data);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchFeatures();
-  }, []);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setSubmitting(true);
-    try {
-      const res = await fetch("/api/features", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description: description.trim() || null, priority }),
-      });
-      if (res.ok) {
-        setTitle("");
-        setDescription("");
-        setPriority(0);
-        setShowForm(false);
-        await fetchFeatures();
-      }
-    } finally {
-      setSubmitting(false);
+    setFormError(null);
+    const { error } = await apiPost("/api/features", {
+      title: title.trim(),
+      description: description.trim() || null,
+      priority,
+    });
+    setSubmitting(false);
+    if (error) {
+      setFormError(error);
+      return;
     }
+    setTitle("");
+    setDescription("");
+    setPriority(0);
+    setShowForm(false);
+    await refetch();
   }
 
+  const list = features ?? [];
   const grouped = {
-    in_progress: features.filter((f) => f.status === "in_progress"),
-    backlog: features.filter((f) => f.status === "backlog"),
-    done: features.filter((f) => f.status === "done"),
-    cancelled: features.filter((f) => f.status === "cancelled"),
+    in_progress: list.filter((f) => f.status === "in_progress"),
+    backlog: list.filter((f) => f.status === "backlog"),
+    done: list.filter((f) => f.status === "done"),
+    cancelled: list.filter((f) => f.status === "cancelled"),
   };
 
   return (
@@ -104,12 +66,11 @@ export default function FeaturesPage() {
               <label className="mb-1 block text-xs font-medium text-text-secondary">
                 Title *
               </label>
-              <input
+              <Input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary/50"
                 placeholder="Feature title"
               />
             </div>
@@ -117,11 +78,10 @@ export default function FeaturesPage() {
               <label className="mb-1 block text-xs font-medium text-text-secondary">
                 Description
               </label>
-              <textarea
+              <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary/50"
                 placeholder="Optional description"
               />
             </div>
@@ -129,13 +89,16 @@ export default function FeaturesPage() {
               <label className="mb-1 block text-xs font-medium text-text-secondary">
                 Priority
               </label>
-              <input
+              <Input
                 type="number"
                 value={priority}
                 onChange={(e) => setPriority(Number(e.target.value))}
-                className="w-24 rounded-md border border-border bg-white px-3 py-1.5 text-sm text-text outline-none focus:border-primary focus:ring-1 focus:ring-primary/50"
+                className="w-24"
               />
             </div>
+            {formError && (
+              <p className="text-sm text-red-600">{formError}</p>
+            )}
             <div className="flex gap-2 pt-1">
               <Button type="submit" disabled={submitting} size="sm">
                 {submitting ? "Creating..." : "Create Feature"}
@@ -156,21 +119,25 @@ export default function FeaturesPage() {
       {/* Features list */}
       {loading ? (
         <p className="text-sm text-text-secondary">Loading...</p>
-      ) : features.length === 0 ? (
+      ) : error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      ) : list.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-text-secondary">
           No features yet. Create your first feature to get started.
         </div>
       ) : (
         <div className="space-y-6">
           {(
-            ["in_progress", "backlog", "done", "cancelled"] as const
+            ["in_progress", "backlog", "done", "cancelled"] as FeatureStatus[]
           ).map((status) => {
             const items = grouped[status];
             if (items.length === 0) return null;
             return (
               <section key={status}>
                 <h2 className="mb-2 text-sm font-medium text-text-secondary">
-                  {statusLabel[status]} ({items.length})
+                  {FEATURE_STATUS_LABELS[status]} ({items.length})
                 </h2>
                 <div className="space-y-1">
                   {items.map((feature) => (
@@ -185,12 +152,12 @@ export default function FeaturesPage() {
                       <span className="flex-1 text-sm text-text">
                         {feature.title}
                       </span>
-                      <Badge variant={statusVariant[feature.status]}>
-                        {statusLabel[feature.status] ?? feature.status}
+                      <Badge variant={FEATURE_STATUS_VARIANT[feature.status as FeatureStatus]}>
+                        {FEATURE_STATUS_LABELS[feature.status as FeatureStatus] ?? feature.status}
                       </Badge>
-                      {feature.assigned_agent && (
+                      {feature.agentId && (
                         <span className="text-xs text-text-secondary">
-                          {feature.assigned_agent}
+                          {feature.agentId}
                         </span>
                       )}
                     </button>

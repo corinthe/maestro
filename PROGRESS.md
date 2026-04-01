@@ -45,9 +45,9 @@
 
 ### UI generale
 - [x] Layout principal avec sidebar fixe (240px)
-- [x] Navigation : Dashboard, Features, Agents, Activity
+- [x] Navigation : Dashboard, Features, Agents
 - [x] Design system : palette indigo, fond #FAFAFA, cartes blanches
-- [x] Composants UI : Badge, Button (variants + tailles)
+- [x] Composants UI : Badge, Button, Input, Textarea (variants + tailles)
 - [x] Dashboard (/) : cartes de stats, sections activite recente et features en cours
 - [x] Tailwind v4 avec theme custom (@theme)
 
@@ -57,6 +57,31 @@
 - [x] Drizzle ORM configure (schema + init SQL)
 - [x] pnpm comme package manager
 - [x] Deps : better-sqlite3, drizzle-orm, commander, picocolors, uuid, ws
+
+---
+
+## Refactoring effectue
+
+### Abstractions partagees
+- [x] `lib/types.ts` : types partages (Feature, Agent, Run, Message) + constantes de statut + labels + variants badge
+- [x] `lib/api.ts` : helpers API (`ok`, `created`, `notFound`, `badRequest`, `serverError`, `handler`, `resourceHandler`, `pickFields`)
+- [x] `hooks/use-api.ts` : hook `useApi<T>(url)` avec loading/error/refetch + `apiPost` / `apiPatch`
+- [x] `components/ui/input.tsx` : composants `Input` et `Textarea` reutilisables
+
+### Bugs corriges
+- [x] Mismatch format API : les clients lisent maintenant `json.data` correctement via `useApi`
+- [x] Types snake_case (`assigned_agent`, `created_at`) remplaces par camelCase (`agentId`, `createdAt`)
+- [x] Type Agent : `model` remplace par `config` (JSON string) avec parsing
+- [x] DB init : plus de double connexion SQLite, `createTables` appele au premier `getDb()`
+- [x] Liens sidebar vers pages inexistantes retires (Activity, Settings)
+
+### Duplication eliminee
+- [x] Try/catch boilerplate dans les API routes -> `handler()` / `resourceHandler()`
+- [x] Field whitelist dans PATCH routes -> `pickFields()`
+- [x] Status labels/variants dupliques -> centralises dans `lib/types.ts`
+- [x] Classes CSS d'input dupliquees -> composants `Input` / `Textarea`
+- [x] Pattern fetch-on-mount duplique -> hook `useApi`
+- [x] Pattern POST form duplique -> `apiPost`
 
 ---
 

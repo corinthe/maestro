@@ -7,10 +7,9 @@ const navItems = [
   { label: "Dashboard", href: "/" },
   { label: "Features", href: "/features" },
   { label: "Agents", href: "/agents" },
-  { label: "Activity", href: "/activity" },
 ];
 
-const bottomItems = [{ label: "Settings", href: "/settings" }];
+const bottomItems: typeof navItems = [];
 
 export function Sidebar() {
   const pathname = usePathname();

@@ -5,35 +5,19 @@ import path from "node:path";
 import fs from "node:fs";
 
 let _db: ReturnType<typeof drizzle<typeof schema>> | null = null;
+let _sqlite: Database.Database | null = null;
 
 export function getDbPath(projectRoot?: string): string {
   const root = projectRoot || process.cwd();
   return path.join(root, ".maestro", "db.sqlite");
 }
 
-export function getDb(projectRoot?: string) {
-  if (_db) return _db;
-
-  const dbPath = getDbPath(projectRoot);
-  const dir = path.dirname(dbPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  const sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-
-  _db = drizzle(sqlite, { schema });
-  return _db;
-}
-
-export function initializeDatabase(projectRoot?: string) {
-  const db = getDb(projectRoot);
-  const dbPath = getDbPath(projectRoot);
-  const sqlite = new Database(dbPath);
-
-  // Create tables directly via SQL for initial setup
+/**
+ * Bootstrap SQL — creates tables and indexes if they don't already exist.
+ * This is the single source of DDL executed at runtime; the column definitions
+ * must stay in sync with the Drizzle schema in ./schema.ts.
+ */
+function createTables(sqlite: Database.Database) {
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS agents (
       id            TEXT PRIMARY KEY,
@@ -153,9 +137,40 @@ export function initializeDatabase(projectRoot?: string) {
       value         TEXT NOT NULL
     );
   `);
+}
 
-  sqlite.close();
-  return db;
+export function getDb(projectRoot?: string) {
+  if (_db) return _db;
+
+  const dbPath = getDbPath(projectRoot);
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const sqlite = new Database(dbPath);
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
+
+  createTables(sqlite);
+
+  _sqlite = sqlite;
+  _db = drizzle(sqlite, { schema });
+  return _db;
+}
+
+// initializeDatabase is now just an alias for getDb — tables are
+// auto-created on first connection, so there is no separate init step.
+export function initializeDatabase(projectRoot?: string) {
+  return getDb(projectRoot);
+}
+
+export function closeDb() {
+  if (_sqlite) {
+    _sqlite.close();
+    _sqlite = null;
+    _db = null;
+  }
 }
 
 export { schema };

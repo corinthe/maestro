@@ -1,83 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
-type Feature = {
-  id: string;
-  key: string;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: number;
-  assigned_agent: string | null;
-  branch: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-const statusVariant: Record<string, "default" | "info" | "success" | "error"> =
-  {
-    backlog: "default",
-    in_progress: "info",
-    done: "success",
-    cancelled: "error",
-  };
-
-const statusLabel: Record<string, string> = {
-  backlog: "Backlog",
-  in_progress: "In Progress",
-  done: "Done",
-  cancelled: "Cancelled",
-};
-
-const allStatuses = ["backlog", "in_progress", "done", "cancelled"];
+import { useApi, apiPatch } from "@/hooks/use-api";
+import {
+  type Feature,
+  type FeatureStatus,
+  FEATURE_STATUSES,
+  FEATURE_STATUS_LABELS,
+  FEATURE_STATUS_VARIANT,
+} from "@/lib/types";
 
 export default function FeatureDetailPage() {
   const params = useParams<{ id: string }>();
-  const [feature, setFeature] = useState<Feature | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: feature, loading, error, refetch } = useApi<Feature>(`/api/features/${params.id}`);
   const [updating, setUpdating] = useState(false);
-
-  async function fetchFeature() {
-    try {
-      const res = await fetch(`/api/features/${params.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setFeature(data);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchFeature();
-  }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleStatusChange(newStatus: string) {
     if (!feature || updating) return;
     setUpdating(true);
-    try {
-      const res = await fetch(`/api/features/${params.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setFeature(data);
-      }
-    } finally {
-      setUpdating(false);
+    const { error } = await apiPatch(`/api/features/${params.id}`, { status: newStatus });
+    if (!error) {
+      await refetch();
     }
+    setUpdating(false);
   }
 
   if (loading) {
     return <p className="text-sm text-text-secondary">Loading...</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href="/features"
+          className="text-sm text-primary hover:underline"
+        >
+          &larr; Back to Features
+        </Link>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      </div>
+    );
   }
 
   if (!feature) {
@@ -113,8 +81,8 @@ export default function FeatureDetailPage() {
               {feature.title}
             </h1>
           </div>
-          <Badge variant={statusVariant[feature.status]}>
-            {statusLabel[feature.status] ?? feature.status}
+          <Badge variant={FEATURE_STATUS_VARIANT[feature.status as FeatureStatus]}>
+            {FEATURE_STATUS_LABELS[feature.status as FeatureStatus] ?? feature.status}
           </Badge>
         </div>
 
@@ -133,23 +101,23 @@ export default function FeatureDetailPage() {
               disabled={updating}
               className="mt-1 rounded-md border border-border bg-white px-2 py-1 text-sm text-text outline-none focus:border-primary"
             >
-              {allStatuses.map((s) => (
+              {FEATURE_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {statusLabel[s]}
+                  {FEATURE_STATUS_LABELS[s]}
                 </option>
               ))}
             </select>
           </div>
           <div>
             <p className="text-xs font-medium text-text-secondary">Priority</p>
-            <p className="mt-1 text-text">{feature.priority}</p>
+            <p className="mt-1 text-text">{feature.priority ?? 0}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-text-secondary">
               Assigned Agent
             </p>
             <p className="mt-1 text-text">
-              {feature.assigned_agent ?? "Unassigned"}
+              {feature.agentId ?? "Unassigned"}
             </p>
           </div>
           <div>
@@ -161,13 +129,13 @@ export default function FeatureDetailPage() {
           <div>
             <p className="text-xs font-medium text-text-secondary">Created</p>
             <p className="mt-1 text-text">
-              {new Date(feature.created_at).toLocaleString()}
+              {new Date(feature.createdAt).toLocaleString()}
             </p>
           </div>
           <div>
             <p className="text-xs font-medium text-text-secondary">Updated</p>
             <p className="mt-1 text-text">
-              {new Date(feature.updated_at).toLocaleString()}
+              {new Date(feature.updatedAt).toLocaleString()}
             </p>
           </div>
         </div>
