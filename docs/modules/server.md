@@ -27,14 +27,14 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 | GET | `/api/agents/:id` | Detail d'un agent (config, stats) |
 | PATCH | `/api/agents/:id` | Modifier la configuration d'un agent |
 | DELETE | `/api/agents/:id` | Supprimer un agent |
-| POST | `/api/agents/:id/stop` | Arreter un agent en cours |
+| POST | `/api/agents/:id/stop` | Arrêter un agent en cours |
 
 ### Orchestrator
 
 | Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/orchestrator/status` | Statut de l'orchestrateur (idle, running) |
-| POST | `/api/orchestrator/wake` | Reveiller l'orchestrateur immédiatement |
+| POST | `/api/orchestrator/wake` | Réveiller l'orchestrateur immédiatement |
 | GET | `/api/orchestrator/runs` | Historique des runs de l'orchestrateur |
 
 ### Runs (exécutions)
@@ -44,7 +44,7 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 | GET | `/api/runs` | Liste des runs (filtres: agent, feature, status) |
 | GET | `/api/runs/:id` | Detail d'un run avec events |
 | GET | `/api/runs/:id/events` | Events d'un run (polling fallback, paginée) |
-| POST | `/api/runs/:id/stop` | Arreter un run |
+| POST | `/api/runs/:id/stop` | Arrêter un run |
 | POST | `/api/runs/:id/restart` | Relancer un run |
 
 ### Messages
@@ -209,7 +209,7 @@ app/
 
 ## Gestion des erreurs
 
-Les API routes retournent des réponses standardisees :
+Les API routes retournent des réponses standardisées :
 
 ```typescript
 // Succes
@@ -219,4 +219,4 @@ Les API routes retournent des réponses standardisees :
 { error: { code: string, message: string } }
 ```
 
-Codes HTTP : 200 (succes), 201 (crée), 400 (validation), 404 (introuvable), 500 (interne).
+Codes HTTP : 200 (succès), 201 (créé), 400 (validation), 404 (introuvable), 500 (interne).

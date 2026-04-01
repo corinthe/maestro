@@ -12,7 +12,7 @@ L'orchestrateur est le **manager** de l'équipe d'agents. Il est spawné périod
 2. Décide quels agents doivent travailler sur quoi
 3. Fournit le contexte nécessaire à chaque agent
 4. Lance les agents via les outils MCP
-5. Peut proposer à l'utilisateur de créer de nouveaux archetypes d'agents
+5. Peut proposer à l'utilisateur de créer de nouveaux archétypes d'agents
 
 L'orchestrateur ne peut PAS :
 - Modifier des fichiers du projet
@@ -128,10 +128,10 @@ Le fichier de configuration MCP pointe vers le serveur interne de Maestro :
 
 L'orchestrateur ne vérifie pas lui-même le travail des agents (il n'interagit pas avec le projet). A la place, il **délègue la vérification à des agents spécialisés** :
 
-- Un agent **QA** qui lancé les tests, vérifie les regressions, valide le code
+- Un agent **QA** qui lancé les tests, vérifie les régressions, valide le code
 - Un agent **review** qui relit le diff et signale les problèmes
 
-L'orchestrateur peut proposer la creation de ces agents si l'équipe n'en a pas. Le workflow typique devient :
+L'orchestrateur peut proposer la création de ces agents si l'équipe n'en a pas. Le workflow typique devient :
 
 ```
 Orchestrateur → assigne MAE-1 a backend-dev
@@ -147,7 +147,7 @@ Si le QA échoue, l'orchestrateur peut reassigner la feature au dev avec le reto
 
 Les agents commitent directement sur la branche courante (généralement `main`). Pas de branches par feature au MVP.
 
-L'orchestrateur inclut dans le prompt de chaque agent l'instruction de commiter son travail avec des messages clairs. Si des problèmes apparaissent avec cette approche, l'architecture permettra d'évoluer vers des branches par feature (l'agent fait `git checkout -b maestro/MAE-X` au debut de son run).
+L'orchestrateur inclut dans le prompt de chaque agent l'instruction de commiter son travail avec des messages clairs. Si des problèmes apparaissent avec cette approche, l'architecture permettra d'évoluer vers des branches par feature (l'agent fait `git checkout -b maestro/MAE-X` au début de son run).
 
 ## Prompt de l'orchestrateur
 
@@ -258,7 +258,7 @@ Orchestrateur reveille
 
 ### 2. Concurrence par zones (futur)
 
-L'orchestrateur pourrait autoriser deux agents en parallèle s'ils travaillent sur des parties disjointes du projet. Il analyserait les fichiers impactes par chaque feature avant de décider.
+L'orchestrateur pourrait autoriser deux agents en parallèle s'ils travaillent sur des parties disjointes du projet. Il analyserait les fichiers impactés par chaque feature avant de décider.
 
 ## Configuration
 
@@ -275,7 +275,7 @@ L'orchestrateur n'a pas de fichier de config dédié dans `.maestro/agents/` : i
 
 ## Propositions d'agents
 
-Quand l'orchestrateur identifie un besoin non couvert, il propose un nouvel archetype d'agent :
+Quand l'orchestrateur identifie un besoin non couvert, il propose un nouvel archétype d'agent :
 
 ```typescript
 interface AgentProposal {

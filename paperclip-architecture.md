@@ -157,7 +157,7 @@ Un agent Claude dans Paperclip est configure avec ces champs :
 | `extraArgs` | Arguments CLI supplémentaires |
 | `env` | Variables d'environnement |
 | `timeoutSec` | Timeout d'exécution |
-| `graceSec` | Delai de grace avant SIGTERM |
+| `graceSec` | Délai de grace avant SIGTERM |
 | `workspaceStrategy` | Stratégie workspace (ex: `git_worktree`) |
 
 ### 3. Flux d'exécution (`execute.ts`)
@@ -252,7 +252,7 @@ Les **skills** sont des instructions/capacités injectées dans Claude au runtim
 1. `syncClaudeSkills()` scanne les skills disponibles dans le runtime Paperclip
 2. `buildSkillsDir()` crée un répertoire temporaire `.claude/skills/` avec des symlinks
 3. Le flag `--add-dir <skills-dir>` permet a Claude Code de découvrir ces skills
-4. Après exécution, le répertoire temporaire est nettoye
+4. Après exécution, le répertoire temporaire est nettoyé
 
 ### 7. Gestion des quotas et authentification (`quota.ts`)
 
@@ -288,9 +288,9 @@ Le heartbeat est le mécanisme qui rend les agents **autonomes** :
 1. **Cron/scheduler** déclenche un "wakeup" pour un agent
 2. Le serveur vérifie le budget, le statut, et la concurrence (`maxConcurrentRuns` : 1-10)
 3. Un "run" est crée en statut `queued` puis passé a `running`
-4. Le workspace est resolu (projet, worktree git, ou home de l'agent)
-5. La session Claude précédente est recherchee pour résumé
-6. L'adaptateur `execute()` est appele (spawn du processus)
+4. Le workspace est résolu (projet, worktree git, ou home de l'agent)
+5. La session Claude précédente est recherchée pour résumé
+6. L'adaptateur `execute()` est appelé (spawn du processus)
 7. Les events (stdout, stderr, status) sont loggués en temps réel
 8. Au terme, le run passé en `succeeded`, `failed`, `cancelled`, ou `timed_out`
 
@@ -313,7 +313,7 @@ Le CLI `heartbeat-run` permet de suivre ce processus en polling (toutes les 200m
 Paperclip supporte plusieurs stratégies de workspace pour isoler les exécutions :
 
 - **Répertoire projet** : exécution dans le repo du projet
-- **Git worktree** : creation de worktrees git isolés (`workspaceStrategy: { type: "git_worktree" }`)
+- **Git worktree** : création de worktrees git isolés (`workspaceStrategy: { type: "git_worktree" }`)
 - **Fallback home** : répertoire home de l'agent
 
 Des variables d'environnement `PAPERCLIP_WORKSPACE_*` et `PAPERCLIP_RUNTIME_*` sont injectées pour que l'agent puisse accéder au contexte.

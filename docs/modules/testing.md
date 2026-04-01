@@ -43,9 +43,9 @@ process.exit(0);
 
 ### Variantes de mock
 
-| Scenario | Fichier | Comportement |
+| Scénario | Fichier | Comportement |
 |----------|---------|--------------|
-| Succes | `mock-claude-success.mjs` | Run normal avec tool calls |
+| Succès | `mock-claude-success.mjs` | Run normal avec tool calls |
 | Échec | `mock-claude-failure.mjs` | Sortie avec `is_error: true` |
 | Timeout | `mock-claude-timeout.mjs` | Ne se terminé jamais (pour tester le timeout) |
 | Max turns | `mock-claude-max-turns.mjs` | Sortie avec `subtype: "error_max_turns"` |
@@ -76,7 +76,7 @@ Testent la logique pure sans effets de bord.
 | `agent-config.ts` | Lecture et validation des fichiers YAML |
 | `orchestrator-prompt.ts` | Construction du prompt de l'orchestrateur |
 | `branch-naming.ts` | Conventions de nommage des branches |
-| Schema Drizzle | Validation du schema, contraintes |
+| Schéma Drizzle | Validation du schéma, contraintes |
 
 ```typescript
 // Exemple : test du parser
@@ -150,7 +150,7 @@ describe("agent run integration", () => {
 
 Testent l'UI complété avec le serveur lancé et le mock Claude CLI.
 
-| Scenario | Ce qui est teste |
+| Scénario | Ce qui est teste |
 |----------|-----------------|
 | Initialisation | Page dashboard charge correctement |
 | Créer une feature | Formulaire → feature visible dans la liste |

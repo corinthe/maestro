@@ -11,7 +11,7 @@ Point d'entrée en ligne de commande pour initialiser Maestro dans un repo, lanc
 Initialise Maestro dans le repo courant.
 
 **Actions :**
-1. Verifie qu'on est dans un repo git
+1. Vérifie qu'on est dans un repo git
 2. Crée le répertoire `.maestro/`
 3. Génère `config.yml` avec les defaults
 4. Crée les sous-répertoires (`agents/`, `skills/`)
@@ -37,7 +37,7 @@ $ npx maestro init
 Lance le serveur Next.js local et ouvre le navigateur.
 
 **Actions :**
-1. Verifie que `.maestro/` existe (sinon suggère `init`)
+1. Vérifie que `.maestro/` existe (sinon suggère `init`)
 2. Démarre le serveur Next.js sur un port disponible (défaut: 4200)
 3. Démarre le heartbeat scheduler
 4. Ouvre le navigateur sur `http://localhost:4200`
@@ -73,7 +73,7 @@ Arrete proprement un agent en cours d'exécution (SIGTERM + grace period).
 
 ### `npx maestro doctor`
 
-Verifie l'environnement (Claude CLI installé, git disponible, config valide).
+Vérifie l'environnement (Claude CLI installé, git disponible, config valide).
 
 ## Structure technique
 
@@ -96,7 +96,7 @@ packages/cli/
 └── tsconfig.json
 ```
 
-## Dependances cles
+## Dépendances clés
 
 - **commander** ou **citty** : parsing des commandes CLI
 - **picocolors** : couleurs terminal

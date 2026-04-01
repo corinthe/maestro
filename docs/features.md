@@ -1,10 +1,10 @@
 # Maestro - Features MVP
 
-Ce document liste les premières features a implémenter, classées par priorité. Chaque feature est décrite avec son scope, son comportement attendu, et les modules concernés.
+Ce document liste les premières features à implémenter, classées par priorité. Chaque feature est décrite avec son scope, son comportement attendu, et les modules concernés.
 
 ---
 
-## P0 — Fondations (sans ca, rien ne marche)
+## P0 — Fondations (sans ça, rien ne marche)
 
 ### F01 — Initialisation du projet (`npx maestro init`)
 
@@ -13,17 +13,17 @@ Ce document liste les premières features a implémenter, classées par priorit�
 Permet d'initialiser Maestro dans un repo git existant.
 
 **Comportement :**
-- Verifie que le répertoire courant est un repo git
-- Verifie que Claude CLI est installé et accessible (`claude --version`)
+- Vérifie que le répertoire courant est un repo git
+- Vérifie que Claude CLI est installé et accessible (`claude --version`)
 - Crée la structure `.maestro/` (config.yml, agents/, skills/, .gitignore partiel)
 - Initialise la base SQLite
 - Crée les agents par défaut (`developer.yml`, `qa-engineer.yml`)
-- Affiche un message de succes avec la commande suivante
+- Affiche un message de succès avec la commande suivante
 
 **Critères d'acceptation :**
-- [ ] `npx maestro init` dans un repo git crée la structure complete
-- [ ] `npx maestro init` dans un non-repo git affiché une erreur claire
-- [ ] `npx maestro init` dans un repo déjà initialise ne casse rien (idempotent)
+- [ ] `npx maestro init` dans un repo git crée la structure complète
+- [ ] `npx maestro init` dans un non-repo git affiche une erreur claire
+- [ ] `npx maestro init` dans un repo déjà initialisé ne casse rien (idempotent)
 - [ ] Claude CLI absent → message d'erreur avec lien d'installation
 
 ---
@@ -35,7 +35,7 @@ Permet d'initialiser Maestro dans un repo git existant.
 Démarre le serveur Next.js local qui sert l'UI et l'API.
 
 **Comportement :**
-- Verifie que `.maestro/` existe
+- Vérifie que `.maestro/` existe
 - Trouve un port disponible (défaut 4200)
 - Démarre le serveur Next.js
 - Démarre le heartbeat scheduler
@@ -51,7 +51,7 @@ Démarre le serveur Next.js local qui sert l'UI et l'API.
 
 ---
 
-### F03 — Creation et gestion des features
+### F03 — Création et gestion des features
 
 **Scope** : UI, Server, Database
 
@@ -61,14 +61,14 @@ L'utilisateur peut créer des features (taches) à réaliser par les agents.
 - Créer une feature avec titre, description, et priorité
 - Changer le statut d'une feature (backlog → in_progress → done)
 - Lister les features avec filtres (statut, agent)
-- Generation automatique d'une clé (MAE-1, MAE-2...)
+- Génération automatique d'une clé (MAE-1, MAE-2...)
 - L'assignation à un agent est faite par l'orchestrateur, pas par l'utilisateur
 
 **Critères d'acceptation :**
 - [ ] L'UI affiché la liste des features groupées par statut
-- [ ] Le formulaire de creation est fonctionnel
+- [ ] Le formulaire de création est fonctionnel
 - [ ] Les statuts sont modifiables manuellement
-- [ ] Les clés sont uniques et auto-incrementees
+- [ ] Les clés sont uniques et auto-incrémentées
 
 ---
 
@@ -100,12 +100,12 @@ Le coeur du système : lancer Claude CLI pour travailler sur une feature.
 
 **Comportement :**
 - Construire les arguments Claude CLI depuis la config de l'agent et le prompt de l'orchestrateur
-- Preparer le répertoire de skills
+- Préparer le répertoire de skills
 - Spawner le processus `claude` avec `--output-format stream-json`
 - Parser le flux JSON ligne par ligne
 - Sauvegarder les events en DB
 - Emettre les events via WebSocket
-- Gerer la fin du run (succes, echec, timeout)
+- Gérer la fin du run (succès, échec, timeout)
 - Sauvegarder le session ID pour le résumé futur
 
 **Critères d'acceptation :**
@@ -148,11 +148,11 @@ Affichage en direct du flux d'un agent pendant son exécution.
 L'orchestrateur est un agent Claude spawné par le heartbeat qui coordonne les agents worker.
 
 **Comportement :**
-- Spawné comme processus Claude CLI avec acces au serveur MCP interne
+- Spawné comme processus Claude CLI avec accès au serveur MCP interne
 - Lit l'état du projet via les outils MCP (features, agents, messages)
 - Décide quels agents doivent travailler sur quelles features
 - Fournit du contexte pertinent à chaque agent (fichiers, conventions, deps)
-- Peut proposer de nouveaux archetypes d'agents à l'utilisateur
+- Peut proposer de nouveaux archétypes d'agents à l'utilisateur
 - Maintient la continuite via `--resume`
 
 **Critères d'acceptation :**
@@ -195,7 +195,7 @@ Le heartbeat réveille périodiquement l'orchestrateur.
 **Comportement :**
 - Boucle périodique (défaut 60s)
 - **Guard** : vérifie qu'il y a du travail nouveau avant de spawner (features en attente, messages non lus, runs terminés, propositions acceptees). Si rien n'a change → skip (evite de consommer des tokens)
-- Verifie qu'aucun orchestrateur ou agent ne tourne avant de spawner
+- Vérifie qu'aucun orchestrateur ou agent ne tourne avant de spawner
 - Spawné l'orchestrateur si la guard passe
 - Détecte et nettoie les runs orphelins
 - Purge les run_events de plus de 24h
@@ -250,7 +250,7 @@ L'utilisateur peut arrêter un agent en cours et le relancer.
 
 **Scope** : UI, Server, Orchestrator
 
-L'utilisateur peut envoyer un message pour guider ou debloquer un agent.
+L'utilisateur peut envoyer un message pour guider ou débloquer un agent.
 
 **Comportement :**
 - Zone de texte dans la live view ou la page feature
@@ -273,10 +273,10 @@ L'utilisateur peut envoyer un message pour guider ou debloquer un agent.
 Au premier lancement (aucune feature, aucun run), l'orchestrateur propose une analyse du projet.
 
 **Comportement :**
-- L'UI détecte qu'il n'y a aucune feature et affiché un guide de démarrage
+- L'UI détecte qu'il n'y a aucune feature et affiché un guidé de démarrage
 - L'orchestrateur, au premier wake, peut proposer un agent "onboarding" qui analyse le codebase (stack, structure, conventions) et génère un résumé de contexte
 - Alternativement, l'orchestrateur peut directement utiliser `get_project_context` et produire un résumé stocké en config
-- L'utilisateur est guide pour créer sa première feature
+- L'utilisateur est guidé pour créer sa première feature
 
 **Critères d'acceptation :**
 - [ ] Au premier lancement, l'UI affiché un état vide accueillant (pas juste des listes vides)
@@ -308,7 +308,7 @@ Créer, éditer et attacher des skills aux agents.
 
 ---
 
-### F14 — Dashboard de synthese
+### F14 — Dashboard de synthèse
 
 **Scope** : UI, Server
 
@@ -319,7 +319,7 @@ Page d'accueil avec vue d'ensemble du projet.
 - Activité récente : derniers events significatifs
 - Features en cours avec agent assigné et statut
 - Statut de l'orchestrateur
-- Cout cumule
+- Cout cumulé
 
 **Critères d'acceptation :**
 - [ ] Les compteurs sont corrects et mis à jour en temps réel
@@ -346,7 +346,7 @@ Page de settings pour configurer Maestro.
 
 ---
 
-## P3 — Polish et qualite de vie
+## P3 — Polish et qualité de vie
 
 ### F16 — Historique des runs par feature
 

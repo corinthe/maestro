@@ -158,9 +158,9 @@ async function executeRun(agent: AgentConfig, task: AssignedTask): Promise<RunRe
 
 Les agents travaillent directement sur le repo. L'orchestrateur garantit qu'un seul agent travaille à la fois (sérialisation séquentielle). Avantages :
 
-- **Simplicite** : pas de creation/merge/nettoyage de worktrees
+- **Simplicité** : pas de création/merge/nettoyage de worktrees
 - **Pas de conflits** : un seul agent modifié les fichiers à la fois
-- **Coherence** : chaque agent voit le travail des précédents
+- **Cohérence** : chaque agent voit le travail des précédents
 
 L'orchestrateur peut lancer un agent sur une branche dédiée si nécessaire (l'agent fait lui-même le `git checkout -b`).
 

@@ -2,7 +2,7 @@
 
 ## Responsabilité
 
-Gestion de la bibliothèque de skills (au format natif Claude Code) et des templates de prompts. Les skills sont attaches aux agents pour guider leur comportement. A terme, ils pourront être partagés via un registre centralisé.
+Gestion de la bibliothèque de skills (au format natif Claude Code) et des templates de prompts. Les skills sont attachés aux agents pour guider leur comportement. À terme, ils pourront être partagés via un registre centralisé.
 
 ## Concepts
 

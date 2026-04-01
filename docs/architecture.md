@@ -87,7 +87,7 @@ Le système est découpé en **9 modules** :
 | **Orchestrator** | Agent Claude qui coordonne les agents, délègue le travail, fournit le contexte | [orchestrator.md](modules/orchestrator.md) |
 | **Agents** | Gestion du cycle de vie des agents worker, configuration, spawn Claude CLI | [agents.md](modules/agents.md) |
 | **Skills & Prompts** | Bibliothèque de skills au format natif Claude Code, partage via registre | [skills.md](modules/skills.md) |
-| **Database** | SQLite embarqué, schema, migrations | [database.md](modules/database.md) |
+| **Database** | SQLite embarqué, schéma, migrations | [database.md](modules/database.md) |
 | **Heartbeat** | Scheduler autonome, réveille l'orchestrateur | [heartbeat.md](modules/heartbeat.md) |
 | **Testing** | Stratégie de tests, mock Claude CLI | [testing.md](modules/testing.md) |
 
@@ -175,7 +175,7 @@ L'orchestrateur est lui-même un agent Claude qui comprend le projet, les agents
 - Il peut **raisonner** sur la meilleure façon de découper le travail
 - Il **sérialise** les tâches pour éviter les conflits (deux agents sur le même fichier)
 - Il **fournit le contexte** nécessaire à chaque agent
-- Il peut **proposer** de nouveaux archetypes d'agents à l'utilisateur
+- Il peut **proposer** de nouveaux archétypes d'agents à l'utilisateur
 - Il est **extensible** : ses capacités évoluent avec les outils MCP qu'on lui donne
 
 ### Pourquoi pas de worktrees ?

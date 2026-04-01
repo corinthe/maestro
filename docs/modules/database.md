@@ -10,11 +10,11 @@ Persistance locale de toutes les données de Maestro via SQLite embarqué. Zero 
 - **Drizzle ORM** : type-safe, léger, migrations déclaratives
 - **Emplacement** : `.maestro/db.sqlite` (gitignore)
 
-## Schema
+## Schéma
 
 ### Table `agents`
 
-Stocke la configuration des agents (source de verite : fichiers YAML, la DB est un cache enrichi avec l'état runtime).
+Stocke la configuration des agents (source de vérité : fichiers YAML, la DB est un cache enrichi avec l'état runtime).
 
 ```sql
 CREATE TABLE agents (
@@ -192,7 +192,7 @@ CREATE TABLE config (
 
 ## Migrations
 
-Drizzle gère les migrations de schema de manière déclarative :
+Drizzle gère les migrations de schéma de manière déclarative :
 
 ```
 lib/
@@ -210,8 +210,8 @@ Les migrations sont exécutées automatiquement au démarrage du serveur.
 
 Les agents et skills existent à la fois comme fichiers (`.maestro/agents/*.yml`, `.maestro/skills/*.md`) et en DB. La regle :
 
-- **Fichiers = source de verite** pour la configuration
-- **DB = source de verite** pour l'état runtime (status, sessions, runs)
+- **Fichiers = source de vérité** pour la configuration
+- **DB = source de vérité** pour l'état runtime (status, sessions, runs)
 - Au démarrage, Maestro synchronise les fichiers vers la DB (ajout, mise à jour, suppression)
 - Les modifications via l'UI ecrivent d'abord le fichier, puis mettent à jour la DB
 

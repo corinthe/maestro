@@ -19,13 +19,13 @@ Interface web principale de Maestro. Dashboard temps réel pour gérer les featu
 
 | Usage | Couleur |
 |-------|---------|
-| Fond principal | `#FAFAFA` (gris tres clair) |
+| Fond principal | `#FAFAFA` (gris très clair) |
 | Fond carte | `#FFFFFF` |
 | Texte principal | `#1A1A1A` |
 | Texte secondaire | `#6B7280` |
 | Bordures | `#E5E7EB` |
 | Accent primaire | `#6366F1` (indigo) |
-| Succes | `#10B981` |
+| Succès | `#10B981` |
 | Erreur | `#EF4444` |
 | Warning | `#F59E0B` |
 | En cours | `#3B82F6` |
@@ -35,7 +35,7 @@ Interface web principale de Maestro. Dashboard temps réel pour gérer les featu
 - `Card` : conteneurs principaux
 - `Button` : actions
 - `Badge` : statuts (idle, running, succeeded, failed)
-- `Dialog` : modales de creation/édition
+- `Dialog` : modales de création/édition
 - `Tabs` : navigation secondaire
 - `ScrollArea` : zones scrollables (logs, activity)
 - `Avatar` : identité visuelle des agents
@@ -216,7 +216,7 @@ C'est la page la plus critique : le flux en direct de ce que fait l'agent.
 
 ### Page Agent proposals (dans `/agents` ou notification)
 
-Quand l'orchestrateur propose un nouvel archetype d'agent, une notification apparaît dans l'UI :
+Quand l'orchestrateur propose un nouvel archétype d'agent, une notification apparaît dans l'UI :
 
 ```
 ┌────────────────────────────────────────────────────────────┐
