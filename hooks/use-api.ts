@@ -39,13 +39,11 @@ export function useApi<T>(url: string): UseApiResult<T> {
   return { data, loading, error, refetch };
 }
 
-export async function apiPost<T>(url: string, body: unknown): Promise<{ data?: T; error?: string }> {
+async function apiMutate<T>(method: string, url: string, body?: unknown): Promise<{ data?: T; error?: string }> {
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const init: RequestInit = { method, headers: { "Content-Type": "application/json" } };
+    if (body !== undefined) init.body = JSON.stringify(body);
+    const res = await fetch(url, init);
     const json = await res.json();
     if (!res.ok) return { error: json.error?.message ?? "Request failed" };
     return { data: json.data };
@@ -54,17 +52,14 @@ export async function apiPost<T>(url: string, body: unknown): Promise<{ data?: T
   }
 }
 
-export async function apiPatch<T>(url: string, body: unknown): Promise<{ data?: T; error?: string }> {
-  try {
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json();
-    if (!res.ok) return { error: json.error?.message ?? "Request failed" };
-    return { data: json.data };
-  } catch {
-    return { error: "Network error" };
-  }
+export function apiPost<T>(url: string, body: unknown) {
+  return apiMutate<T>("POST", url, body);
+}
+
+export function apiPatch<T>(url: string, body: unknown) {
+  return apiMutate<T>("PATCH", url, body);
+}
+
+export function apiDelete<T>(url: string) {
+  return apiMutate<T>("DELETE", url);
 }

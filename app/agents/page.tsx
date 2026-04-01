@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useApi, apiPost } from "@/hooks/use-api";
+import { useApi, apiPost, apiPatch } from "@/hooks/use-api";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { type Agent, AGENT_STATUS_LABELS, type AgentStatus } from "@/lib/types";
 
 const statusDot: Record<string, string> = {
@@ -29,6 +30,19 @@ export default function AgentsPage() {
   const [model, setModel] = useState("claude-sonnet-4-6");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [stoppingAgent, setStoppingAgent] = useState<string | null>(null);
+
+  // Live updates via WebSocket
+  const onWsEvent = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      if (event.type === "agent.status") {
+        refetch();
+      }
+    },
+    [refetch],
+  );
+
+  useWebSocket({ filter: "agent.", onEvent: onWsEvent });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,6 +63,19 @@ export default function AgentsPage() {
     setDescription("");
     setModel("claude-sonnet-4-6");
     setShowForm(false);
+    await refetch();
+  }
+
+  async function handleStop(agentId: string) {
+    setStoppingAgent(agentId);
+    await apiPost(`/api/agents/${agentId}/stop`, {});
+    setStoppingAgent(null);
+    // WS broadcast will trigger refetch
+  }
+
+  async function handleRestart(agentId: string) {
+    await apiPatch(`/api/agents/${agentId}`, { status: "idle" });
+    // PATCH doesn't broadcast, so refetch manually
     await refetch();
   }
 
@@ -136,6 +163,8 @@ export default function AgentsPage() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((agent) => {
             const agentModel = parseModel(agent.config);
+            const isRunning = agent.status === "running";
+            const isStopped = agent.status === "stopped";
             return (
               <div
                 key={agent.id}
@@ -156,10 +185,31 @@ export default function AgentsPage() {
                   </p>
                 )}
                 {agentModel && (
-                  <p className="font-mono text-xs text-text-secondary">
+                  <p className="mb-3 font-mono text-xs text-text-secondary">
                     {agentModel}
                   </p>
                 )}
+                <div className="flex gap-2">
+                  {isRunning && (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleStop(agent.id)}
+                      disabled={stoppingAgent === agent.id}
+                    >
+                      {stoppingAgent === agent.id ? "Stopping..." : "Stop"}
+                    </Button>
+                  )}
+                  {isStopped && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleRestart(agent.id)}
+                    >
+                      Reset to Idle
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           })}

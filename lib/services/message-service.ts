@@ -1,13 +1,16 @@
 import { v4 as uuidv4 } from "uuid";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { messages } from "@/lib/db/schema";
 
-export function listMessages(filters?: { status?: string }) {
+export function listMessages(filters?: { status?: string; featureId?: string }) {
   const db = getDb();
+  const conditions = [];
+  if (filters?.status) conditions.push(eq(messages.status, filters.status));
+  if (filters?.featureId) conditions.push(eq(messages.featureId, filters.featureId));
   const query = db.select().from(messages).orderBy(desc(messages.createdAt));
-  if (filters?.status) {
-    return query.where(eq(messages.status, filters.status)).all();
+  if (conditions.length > 0) {
+    return query.where(and(...conditions)).all();
   }
   return query.all();
 }
@@ -31,6 +34,16 @@ export function createMessage(data: {
   };
   db.insert(messages).values(row).run();
   return row;
+}
+
+export function getMessage(id: string) {
+  const db = getDb();
+  return db.select().from(messages).where(eq(messages.id, id)).get();
+}
+
+export function deleteMessage(id: string) {
+  const db = getDb();
+  db.delete(messages).where(eq(messages.id, id)).run();
 }
 
 export function markAsRead(id: string) {
