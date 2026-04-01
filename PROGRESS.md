@@ -85,21 +85,34 @@
 
 ---
 
-## Phase 2 - Execution (F05-F06) - A FAIRE
+## Phase 2 - Execution (F05-F06) - DONE
 
 ### F05 - Spawn Claude CLI
-- [ ] Claude CLI adapter (spawn, stream-json parsing)
-- [ ] Sauvegarde des events en DB
-- [ ] Emission WebSocket temps reel
-- [ ] Gestion fin de run (succes, echec, timeout)
-- [ ] Persistance session ID
+- [x] Claude CLI adapter (spawn, stream-json parsing) — `lib/claude/adapter.ts`
+- [x] Args builder — `lib/claude/args-builder.ts`
+- [x] Stream-json parser — `lib/claude/parser.ts`
+- [x] Agent runner (orchestration du run complet) — `lib/claude/agent-runner.ts`
+- [x] Sauvegarde des events en DB via run-service
+- [x] Emission WebSocket temps reel via broadcast
+- [x] Gestion fin de run (succes, echec, timeout, stopped)
+- [x] Persistance session ID (capture depuis event system/init)
+- [x] API Routes : POST /api/runs/start, POST /api/runs/:id/stop, POST /api/runs/:id/restart
+- [x] Support MOCK_CLAUDE env var pour les tests
 
 ### F06 - Live view
-- [ ] WebSocket server
-- [ ] Hook useWebSocket
-- [ ] Page /runs/:id avec flux en direct
-- [ ] Auto-scroll, indicateur Live
-- [ ] Types d'events visuellement distincts
+- [x] WebSocket server sur port 4201 — `lib/ws/server.ts`
+- [x] Instrumentation Next.js pour demarrage auto du WS — `instrumentation.ts`
+- [x] Hook useWebSocket avec reconnexion auto — `hooks/use-websocket.ts`
+- [x] Page /runs avec liste de tous les runs
+- [x] Page /runs/:id avec flux en direct (Live View)
+- [x] Composant RunEvent avec rendu par type — `components/runs/run-event.tsx`
+- [x] Auto-scroll avec detection de remontee manuelle
+- [x] Indicateur Live + WS connected
+- [x] Types d'events visuellement distincts (system=bleu, thinking=gris, tool=jaune, assistant=vert, result=indigo, error=rouge)
+- [x] Boutons Stop / Restart dans la Live View
+- [x] Metriques (tokens, cout) affichees en fin de run
+- [x] Page feature detail enrichie avec section Runs + formulaire Start Run
+- [x] Navigation Runs ajoutee dans la sidebar
 
 ---
 

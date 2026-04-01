@@ -35,6 +35,7 @@ app/                        # Pages et API routes Next.js (App Router)
 
 components/
   layout/sidebar.tsx        # Sidebar fixe 240px
+  runs/run-event.tsx        # Rendu d'un event Claude (system, assistant, tool, result)
   ui/                       # Composants shadcn (Badge, Button, Input)
 
 lib/
@@ -43,6 +44,13 @@ lib/
   db/
     index.ts                # Init connexion SQLite, getDb(), createTables()
     schema.ts               # Schema Drizzle (10 tables)
+  claude/
+    args-builder.ts         # Construction des args CLI (model, effort, max-turns, skills, resume)
+    parser.ts               # Parse stream-json ligne par ligne → StreamEvent
+    adapter.ts              # Spawn Claude CLI process, gestion stdout/stderr/exit
+    agent-runner.ts         # Orchestration d'un run complet: DB + spawn + WS broadcast + timeout
+  ws/
+    server.ts               # WebSocket server (port 4201), broadcast()
   services/
     feature-service.ts      # CRUD features (list, get, create, update, delete)
     agent-service.ts        # CRUD agents + setStatus
@@ -51,6 +59,9 @@ lib/
 
 hooks/
   use-api.ts                # Hook useApi<T>(url) + apiPost/apiPatch
+  use-websocket.ts          # Hook useWebSocket avec reconnexion auto + filtrage events
+
+instrumentation.ts          # Demarre le WS server au boot Next.js
 
 src/
   cli/index.ts              # CLI commander (init, dev)
@@ -91,7 +102,7 @@ src/
 ## Avancement
 
 - **Phase 1 (DONE)**: CLI init/dev, CRUD features/agents, UI dashboard/features/agents, services, API routes
-- **Phase 2 (A FAIRE)**: Spawn Claude CLI (adapter, parser, stream-json), WebSocket server, Live view
+- **Phase 2 (DONE)**: Spawn Claude CLI (adapter, parser, agent-runner), WebSocket server (port 4201), Live view (/runs/:id), Stop/Restart
 - **Phase 3 (A FAIRE)**: Serveur MCP interne, orchestrateur Claude, heartbeat scheduler, wakeup manuel
 - **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
 - **Phase 5 (A FAIRE)**: Skills, dashboard avance, config, historique, stats, CLI avance
