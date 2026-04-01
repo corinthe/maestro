@@ -17,7 +17,7 @@ Permet d'initialiser Maestro dans un repo git existant.
 - Verifie que Claude CLI est installe et accessible (`claude --version`)
 - Cree la structure `.maestro/` (config.yml, agents/, skills/, .gitignore partiel)
 - Initialise la base SQLite
-- Cree un agent par defaut (ex: `developer.yml`)
+- Cree les agents par defaut (`developer.yml`, `qa-engineer.yml`)
 - Affiche un message de succes avec la commande suivante
 
 **Criteres d'acceptation :**
@@ -194,13 +194,15 @@ Le heartbeat reveille periodiquement l'orchestrateur.
 
 **Comportement :**
 - Boucle periodique (defaut 60s)
+- **Guard** : verifie qu'il y a du travail nouveau avant de spawner (features en attente, messages non lus, runs termines, propositions acceptees). Si rien n'a change → skip (evite de consommer des tokens)
 - Verifie qu'aucun orchestrateur ou agent ne tourne avant de spawner
-- Spawne l'orchestrateur s'il y a des features en attente
+- Spawne l'orchestrateur si la guard passe
 - Detecte et nettoie les runs orphelins
 - Purge les run_events de plus de 24h
 
 **Criteres d'acceptation :**
-- [ ] L'orchestrateur est reveille automatiquement
+- [ ] L'orchestrateur est reveille automatiquement quand il y a du travail
+- [ ] La guard empeche les spawns inutiles (pas de tokens gaspilles)
 - [ ] Pas de spawn si un run est deja en cours
 - [ ] Les runs orphelins sont detectes apres redemarrage
 - [ ] La purge des logs fonctionne
@@ -261,6 +263,25 @@ L'utilisateur peut envoyer un message pour guider ou debloquer un agent.
 - [ ] Le message est stocke en DB
 - [ ] L'orchestrateur lit et traite les messages
 - [ ] Le message influence le comportement de l'agent au run suivant
+
+---
+
+### F12bis — Onboarding au premier lancement
+
+**Scope** : Orchestrator, UI
+
+Au premier lancement (aucune feature, aucun run), l'orchestrateur propose une analyse du projet.
+
+**Comportement :**
+- L'UI detecte qu'il n'y a aucune feature et affiche un guide de demarrage
+- L'orchestrateur, au premier wake, peut proposer un agent "onboarding" qui analyse le codebase (stack, structure, conventions) et genere un resume de contexte
+- Alternativement, l'orchestrateur peut directement utiliser `get_project_context` et produire un resume stocke en config
+- L'utilisateur est guide pour creer sa premiere feature
+
+**Criteres d'acceptation :**
+- [ ] Au premier lancement, l'UI affiche un etat vide accueillant (pas juste des listes vides)
+- [ ] L'orchestrateur a suffisamment de contexte pour deleguer des le premier run
+- [ ] L'utilisateur comprend quoi faire (creer une feature)
 
 ---
 

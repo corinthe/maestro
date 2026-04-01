@@ -22,8 +22,13 @@ L'utilisateur peut aussi declencher un wakeup manuel (via l'UI ou `npx maestro w
 │     → Oui : skip                                             │
 │  2. Y a-t-il un agent worker en cours d'execution ?           │
 │     → Oui : skip (attendre qu'il finisse)                    │
-│  3. Y a-t-il des features en backlog/in_progress ?            │
-│     → Non : skip (rien a faire)                              │
+│  3. Guard : y a-t-il quelque chose de nouveau ?               │
+│     Verifier AU MOINS une condition :                         │
+│     - Features en backlog/in_progress sans run recent         │
+│     - Messages utilisateur non lus                            │
+│     - Runs termines depuis le dernier tick orchestrateur       │
+│     - Propositions d'agents acceptees a traiter               │
+│     → Rien de nouveau : skip (evite de consommer des tokens)  │
 │  4. Spawner l'orchestrateur                                   │
 │     → L'orchestrateur evalue l'etat et decide des actions    │
 │     → Il peut lancer un agent, proposer un plan, etc.        │
@@ -59,6 +64,45 @@ Depuis le CLI :
 ```bash
 npx maestro wake          # Reveille l'orchestrateur
 ```
+
+## Guard : eviter les spawns inutiles
+
+Avant de spawner l'orchestrateur, le heartbeat verifie qu'il y a effectivement quelque chose de nouveau a traiter. Sans cette guard, l'orchestrateur consommerait des tokens a chaque tick pour conclure "rien a faire".
+
+```typescript
+function hasWorkToDo(): boolean {
+  // Features en attente sans run recent
+  const pendingFeatures = db.features.count({
+    status: { in: ["backlog", "in_progress"] }
+  });
+
+  // Messages utilisateur non lus
+  const unreadMessages = db.messages.count({ status: "pending" });
+
+  // Runs termines depuis le dernier tick orchestrateur
+  const lastOrchestratorRun = db.runs.findFirst({
+    runType: "orchestrator",
+    orderBy: { createdAt: "desc" }
+  });
+  const newCompletedRuns = db.runs.count({
+    status: { in: ["succeeded", "failed", "stopped"] },
+    finishedAt: { gt: lastOrchestratorRun?.createdAt ?? "1970-01-01" }
+  });
+
+  // Propositions acceptees a traiter
+  const acceptedProposals = db.proposals.count({
+    status: "accepted",
+    resolvedAt: { gt: lastOrchestratorRun?.createdAt ?? "1970-01-01" }
+  });
+
+  return pendingFeatures > 0
+    || unreadMessages > 0
+    || newCompletedRuns > 0
+    || acceptedProposals > 0;
+}
+```
+
+Si `hasWorkToDo()` retourne `false`, le heartbeat skip le tick sans spawner l'orchestrateur.
 
 ## Surveillance des runs
 

@@ -16,15 +16,18 @@ Initialise Maestro dans le repo courant.
 3. Genere `config.yml` avec les defaults
 4. Cree les sous-repertoires (`agents/`, `skills/`)
 5. Initialise la base SQLite (`db.sqlite`)
-6. Met a jour `.gitignore` (ajoute `db.sqlite`, `worktrees/`)
-7. Cree un agent par defaut (`default-agent.yml`)
+6. Met a jour `.gitignore` (ajoute `db.sqlite`)
+7. Cree les agents par defaut :
+   - `developer.yml` — agent de developpement generaliste
+   - `qa-engineer.yml` — agent QA qui verifie le travail des autres agents
 8. Installe les dependances si necessaire
 
 ```
 $ npx maestro init
   Maestro initialized in /Users/dev/my-project
   Created .maestro/config.yml
-  Created .maestro/agents/default-agent.yml
+  Created .maestro/agents/developer.yml
+  Created .maestro/agents/qa-engineer.yml
   Updated .gitignore
   Ready — run `npx maestro dev` to start
 ```
@@ -54,13 +57,14 @@ $ npx maestro status
     frontend-dev → feat/dashboard (idle)
 ```
 
-### `npx maestro wake [agent]`
+### `npx maestro wake`
 
-Reveille un agent ou tous les agents pour qu'ils verifient s'ils ont du travail.
+Reveille l'orchestrateur immediatement pour qu'il evalue l'etat du projet et delegue du travail.
 
 ```
-$ npx maestro wake              # reveille tous les agents
-$ npx maestro wake backend-dev  # reveille un agent specifique
+$ npx maestro wake
+  Waking orchestrator...
+  Orchestrator running.
 ```
 
 ### `npx maestro stop [agent]`

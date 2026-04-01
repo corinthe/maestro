@@ -124,6 +124,31 @@ Le fichier de configuration MCP pointe vers le serveur interne de Maestro :
 
 > Note : le serveur MCP tourne dans le meme process Node.js que Maestro. Le `mcp-server.js` est un pont stdio qui communique avec les services internes.
 
+## Verification du travail
+
+L'orchestrateur ne verifie pas lui-meme le travail des agents (il n'interagit pas avec le projet). A la place, il **delegue la verification a des agents specialises** :
+
+- Un agent **QA** qui lance les tests, verifie les regressions, valide le code
+- Un agent **review** qui relit le diff et signale les problemes
+
+L'orchestrateur peut proposer la creation de ces agents si l'equipe n'en a pas. Le workflow typique devient :
+
+```
+Orchestrateur → assigne MAE-1 a backend-dev
+                  → backend-dev termine (succeeded)
+Orchestrateur → assigne la verification de MAE-1 a qa-engineer
+                  → qa-engineer termine (succeeded, tests OK)
+Orchestrateur → complete_feature(MAE-1)
+```
+
+Si le QA echoue, l'orchestrateur peut reassigner la feature au dev avec le retour du QA en contexte.
+
+## Git : commits sur main (MVP)
+
+Les agents commitent directement sur la branche courante (generalement `main`). Pas de branches par feature au MVP.
+
+L'orchestrateur inclut dans le prompt de chaque agent l'instruction de commiter son travail avec des messages clairs. Si des problemes apparaissent avec cette approche, l'architecture permettra d'evoluer vers des branches par feature (l'agent fait `git checkout -b maestro/MAE-X` au debut de son run).
+
 ## Prompt de l'orchestrateur
 
 Le prompt systeme de l'orchestrateur definit son role et ses capacites :
@@ -138,6 +163,7 @@ on a software project.
 - Provide clear, detailed context to each agent so they can work effectively
 - Ensure no two agents work on the same files simultaneously
 - Propose new agent archetypes when the current team lacks a needed skill
+- Delegate verification to QA/review agents, never validate work yourself
 
 ## What you can do
 - Use `list_features` and `list_agents` to understand the current state
@@ -145,13 +171,14 @@ on a software project.
 - Use `get_pending_messages` to read user messages
 - Use `assign_task` to delegate work to agents with specific instructions
 - Use `propose_agent` to suggest new agent types to the user
-- Use `complete_feature` when a feature is done
+- Use `complete_feature` when a feature is done AND verified
 - Use `set_feature_priority` to reorder work
 
 ## What you cannot do
 - You cannot modify project files directly
 - You cannot execute shell commands
 - You cannot create features (only the user can)
+- You cannot verify work yourself (delegate to QA agents)
 
 ## Guidelines
 - Always check agent status before assigning work
@@ -161,8 +188,10 @@ on a software project.
 - If a previous run failed, analyze the failure before retrying
 - Serialize work on shared files: never assign two agents to files
   that overlap
-- When you lack an agent archetype for a task (e.g., a security auditor,
-  a documentation writer), propose it to the user with a clear rationale
+- When you lack an agent archetype for a task (e.g., QA, security auditor,
+  documentation writer), propose it to the user with a clear rationale
+- Never mark a feature as complete without QA validation
+- Tell agents to commit their work on the current branch with clear messages
 ```
 
 ## Cycle de vie
