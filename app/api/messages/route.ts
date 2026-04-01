@@ -7,7 +7,8 @@ import { broadcast } from "@/lib/ws/server";
 export const GET = handler((request: NextRequest) => {
   const { searchParams } = request.nextUrl;
   const status = searchParams.get("status") ?? undefined;
-  return ok(listMessages({ status }));
+  const featureId = searchParams.get("featureId") ?? undefined;
+  return ok(listMessages({ status, featureId }));
 });
 
 export const POST = handler(async (request: NextRequest) => {

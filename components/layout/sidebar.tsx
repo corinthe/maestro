@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useApi } from "@/hooks/use-api";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { type Message } from "@/lib/types";
@@ -20,16 +20,14 @@ const bottomItems: typeof navItems = [];
 export function Sidebar() {
   const pathname = usePathname();
   const { data: messages, refetch } = useApi<Message[]>("/api/messages?status=pending");
-  const [pendingCount, setPendingCount] = useState<number | null>(null);
 
-  // Compute from fetched data
-  const count = pendingCount ?? (messages?.length ?? 0);
+  const count = messages?.length ?? 0;
 
   // Live updates via WebSocket
   const onWsEvent = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
       if (event.type.startsWith("message.")) {
-        refetch().then(() => setPendingCount(null));
+        refetch();
       }
     },
     [refetch],

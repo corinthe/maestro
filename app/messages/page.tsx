@@ -1,17 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { useApi, apiPost, apiPatch } from "@/hooks/use-api";
+import { useApi, apiPost, apiPatch, apiDelete } from "@/hooks/use-api";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { type Message, type Agent } from "@/lib/types";
-
-const STATUS_VARIANT: Record<string, "default" | "info" | "success"> = {
-  pending: "info",
-  read: "default",
-};
+import { type Message, type MessageStatus, type Agent, MESSAGE_STATUS_VARIANT } from "@/lib/types";
 
 export default function MessagesPage() {
   const { data: messages, loading, error, refetch } = useApi<Message[]>("/api/messages");
@@ -35,7 +30,20 @@ export default function MessagesPage() {
 
   useWebSocket({ filter: "message.", onEvent: onWsEvent });
 
-  const agentMap = new Map((agents ?? []).map((a) => [a.id, a.name]));
+  const agentMap = useMemo(
+    () => new Map((agents ?? []).map((a) => [a.id, a.name])),
+    [agents],
+  );
+
+  const { list, pendingCount } = useMemo(() => {
+    let pending = 0;
+    const filtered: Message[] = [];
+    for (const m of messages ?? []) {
+      if (m.status === "pending") pending++;
+      if (filter === "all" || m.status === filter) filtered.push(m);
+    }
+    return { list: filtered, pendingCount: pending };
+  }, [messages, filter]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,25 +62,18 @@ export default function MessagesPage() {
     setContent("");
     setTargetAgent("");
     setShowForm(false);
-    await refetch();
+    // WS broadcast will trigger refetch
   }
 
   async function handleMarkAsRead(id: string) {
     await apiPatch(`/api/messages/${id}`, { status: "read" });
-    await refetch();
+    // WS broadcast will trigger refetch
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/messages/${id}`, { method: "DELETE" });
-    await refetch();
+    await apiDelete(`/api/messages/${id}`);
+    // WS broadcast will trigger refetch
   }
-
-  const list = (messages ?? []).filter((m) => {
-    if (filter === "all") return true;
-    return m.status === filter;
-  });
-
-  const pendingCount = (messages ?? []).filter((m) => m.status === "pending").length;
 
   return (
     <div className="space-y-6">
@@ -171,7 +172,7 @@ export default function MessagesPage() {
             >
               <div className="mb-2 flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge variant={STATUS_VARIANT[msg.status] ?? "default"}>
+                  <Badge variant={MESSAGE_STATUS_VARIANT[msg.status as MessageStatus] ?? "default"}>
                     {msg.status}
                   </Badge>
                   {msg.targetAgent && (

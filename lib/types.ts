@@ -97,6 +97,14 @@ export const RUN_STATUS_VARIANT: Record<RunStatus, "default" | "info" | "success
   timed_out: "error",
 };
 
+export const MESSAGE_STATUSES = ["pending", "read"] as const;
+export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
+
+export const MESSAGE_STATUS_VARIANT: Record<MessageStatus, "default" | "info"> = {
+  pending: "info",
+  read: "default",
+};
+
 // Parsed stream event for display in the UI
 export type RunEventData = {
   type: string;

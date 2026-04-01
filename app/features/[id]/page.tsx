@@ -14,10 +14,12 @@ import {
   type RunStatus,
   type Agent,
   type Message,
+  type MessageStatus,
   FEATURE_STATUSES,
   FEATURE_STATUS_LABELS,
   FEATURE_STATUS_VARIANT,
   RUN_STATUS_VARIANT,
+  MESSAGE_STATUS_VARIANT,
 } from "@/lib/types";
 
 export default function FeatureDetailPage() {
@@ -26,7 +28,7 @@ export default function FeatureDetailPage() {
   const { data: feature, loading, error, refetch } = useApi<Feature>(`/api/features/${params.id}`);
   const { data: runs } = useApi<Run[]>(`/api/runs?featureId=${params.id}`);
   const { data: agents } = useApi<Agent[]>("/api/agents");
-  const { data: allMessages, refetch: refetchMessages } = useApi<Message[]>("/api/messages");
+  const { data: featureMessages, refetch: refetchMessages } = useApi<Message[]>(`/api/messages?featureId=${params.id}`);
   const [updating, setUpdating] = useState(false);
 
   // Run form state
@@ -91,6 +93,8 @@ export default function FeatureDetailPage() {
       </div>
     );
   }
+
+  const messages = featureMessages ?? [];
 
   return (
     <div className="space-y-6">
@@ -233,46 +237,34 @@ export default function FeatureDetailPage() {
         </form>
 
         {/* Messages list */}
-        {(() => {
-          const featureMessages = (allMessages ?? []).filter(
-            (m) => m.featureId === params.id,
-          );
-          if (featureMessages.length === 0) {
-            return (
-              <p className="text-sm text-text-secondary">No messages yet.</p>
-            );
-          }
-          return (
-            <div className="space-y-2">
-              {featureMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`rounded-md border px-4 py-2.5 ${
-                    msg.status === "pending"
-                      ? "border-primary/30 bg-primary/5"
-                      : "border-border"
-                  }`}
-                >
-                  <div className="mb-1 flex items-center justify-between">
-                    <Badge
-                      variant={
-                        msg.status === "pending" ? "info" : "default"
-                      }
-                    >
-                      {msg.status}
-                    </Badge>
-                    <span className="text-xs text-text-secondary">
-                      {new Date(msg.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="whitespace-pre-wrap text-sm text-text">
-                    {msg.content}
-                  </p>
+        {messages.length === 0 ? (
+          <p className="text-sm text-text-secondary">No messages yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`rounded-md border px-4 py-2.5 ${
+                  msg.status === "pending"
+                    ? "border-primary/30 bg-primary/5"
+                    : "border-border"
+                }`}
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <Badge variant={MESSAGE_STATUS_VARIANT[msg.status as MessageStatus] ?? "default"}>
+                    {msg.status}
+                  </Badge>
+                  <span className="text-xs text-text-secondary">
+                    {new Date(msg.createdAt).toLocaleString()}
+                  </span>
                 </div>
-              ))}
-            </div>
-          );
-        })()}
+                <p className="whitespace-pre-wrap text-sm text-text">
+                  {msg.content}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -70,11 +70,12 @@ export default function AgentsPage() {
     setStoppingAgent(agentId);
     await apiPost(`/api/agents/${agentId}/stop`, {});
     setStoppingAgent(null);
-    await refetch();
+    // WS broadcast will trigger refetch
   }
 
   async function handleRestart(agentId: string) {
     await apiPatch(`/api/agents/${agentId}`, { status: "idle" });
+    // PATCH doesn't broadcast, so refetch manually
     await refetch();
   }
 
