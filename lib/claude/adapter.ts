@@ -4,6 +4,9 @@
 import { spawn, type ChildProcess } from "child_process";
 import { buildClaudeArgs, type AgentConfig, type RunTask } from "./args-builder";
 import { parseStreamLine, type StreamEvent } from "./parser";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("adapter");
 
 export type ClaudeProcess = {
   child: ChildProcess;
@@ -28,6 +31,8 @@ export function spawnClaude(
 ): ClaudeProcess {
   const args = buildClaudeArgs(config, task);
 
+  log.info("spawning claude", { command: CLAUDE_COMMAND, args, cwd });
+
   const child = spawn(CLAUDE_COMMAND, args, {
     cwd,
     env: { ...process.env, ...env },
@@ -50,7 +55,9 @@ export function spawnClaude(
   });
 
   child.stderr?.on("data", (chunk: Buffer) => {
-    callbacks?.onError(chunk.toString());
+    const text = chunk.toString();
+    log.debug("stderr", { pid: child.pid, text: text.trim() });
+    callbacks?.onError(text);
   });
 
   child.on("exit", (code, signal) => {

@@ -26,6 +26,10 @@ export type StreamEvent = {
   raw: string;
 };
 
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("parser");
+
 export function parseStreamLine(line: string): StreamEvent | null {
   const trimmed = line.trim();
   if (!trimmed) return null;
@@ -34,6 +38,7 @@ export function parseStreamLine(line: string): StreamEvent | null {
   try {
     json = JSON.parse(trimmed);
   } catch {
+    log.warn("invalid JSON in stream", { line: trimmed.slice(0, 200) });
     return null;
   }
 

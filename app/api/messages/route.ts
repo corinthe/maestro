@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { handler, ok, created, badRequest } from "@/lib/api";
 import { listMessages, createMessage } from "@/lib/services/message-service";
+import { validateMessageCreate } from "@/lib/validation";
 
 export const GET = handler((request: NextRequest) => {
   const { searchParams } = request.nextUrl;
@@ -10,9 +11,8 @@ export const GET = handler((request: NextRequest) => {
 
 export const POST = handler(async (request: NextRequest) => {
   const body = await request.json();
-  if (!body.content || typeof body.content !== "string") {
-    return badRequest("content is required");
-  }
+  const v = validateMessageCreate(body);
+  if (!v.ok) return badRequest(v.message);
   return created(
     createMessage({
       content: body.content,

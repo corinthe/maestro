@@ -2,6 +2,9 @@
  * Heartbeat scheduler — periodically wakes the orchestrator to check on progress.
  */
 import { wakeOrchestrator, getHeartbeatConfig } from "./index";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("heartbeat");
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let currentIntervalSec = 0;
@@ -25,9 +28,7 @@ export function startHeartbeat(): void {
   stopHeartbeat();
   currentIntervalSec = config.intervalSec;
 
-  console.log(
-    `[heartbeat] Starting heartbeat every ${config.intervalSec}s`
-  );
+  log.info("starting heartbeat", { intervalSec: config.intervalSec });
 
   intervalHandle = setInterval(async () => {
     // Re-check config on each tick (user may have disabled)
@@ -40,10 +41,12 @@ export function startHeartbeat(): void {
     try {
       const result = await wakeOrchestrator("heartbeat");
       if (!result.alreadyRunning) {
-        console.log(`[heartbeat] Woke orchestrator, runId=${result.runId}`);
+        log.info("woke orchestrator", { runId: result.runId });
+      } else {
+        log.debug("heartbeat tick skipped, already running");
       }
     } catch (err) {
-      console.error("[heartbeat] Failed to wake orchestrator:", err);
+      log.error("failed to wake orchestrator", { error: String(err) });
     }
   }, config.intervalSec * 1000);
 }
@@ -56,7 +59,7 @@ export function stopHeartbeat(): void {
     clearInterval(intervalHandle);
     intervalHandle = null;
     currentIntervalSec = 0;
-    console.log("[heartbeat] Stopped heartbeat");
+    log.info("heartbeat stopped");
   }
 }
 

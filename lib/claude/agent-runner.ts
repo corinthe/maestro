@@ -8,6 +8,9 @@ import { type AgentConfig } from "./args-builder";
 import * as runService from "@/lib/services/run-service";
 import { setAgentStatus } from "@/lib/services/agent-service";
 import { broadcast } from "@/lib/ws/server";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("agent-runner");
 
 export type RunRequest = {
   agentId: string;
@@ -36,6 +39,8 @@ export function listActiveRunIds(): string[] {
 }
 
 export async function executeRun(req: RunRequest): Promise<string> {
+  log.info("run starting", { agentId: req.agentId, featureId: req.featureId, runType: req.runType ?? "agent" });
+
   // 1. Create run record in DB
   const run = runService.createRun({
     agentId: req.agentId,
@@ -108,6 +113,7 @@ export async function executeRun(req: RunRequest): Promise<string> {
       },
 
       onError(error: string) {
+        log.warn("stderr output", { runId, error: error.trim() });
         seq++;
         runService.addRunEvent({
           runId,
@@ -142,6 +148,8 @@ export async function executeRun(req: RunRequest): Promise<string> {
           exitCode: code ?? undefined,
           finishedAt: now,
         });
+
+        log.info("run finished", { runId, agentId: req.agentId, status, exitCode: code, signal });
 
         // Mark agent as idle
         setAgentStatus(req.agentId, "idle");

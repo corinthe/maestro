@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { handler, ok, created, badRequest } from "@/lib/api";
 import { listFeatures, createFeature } from "@/lib/services/feature-service";
+import { validateFeatureCreate } from "@/lib/validation";
 
 export const GET = handler((request: NextRequest) => {
   const { searchParams } = request.nextUrl;
@@ -11,9 +12,8 @@ export const GET = handler((request: NextRequest) => {
 
 export const POST = handler(async (request: NextRequest) => {
   const body = await request.json();
-  if (!body.title || typeof body.title !== "string") {
-    return badRequest("title is required");
-  }
+  const v = validateFeatureCreate(body);
+  if (!v.ok) return badRequest(v.message);
   return created(
     createFeature({
       title: body.title,
