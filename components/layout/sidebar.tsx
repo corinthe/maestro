@@ -2,18 +2,40 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCallback, useState } from "react";
+import { useApi } from "@/hooks/use-api";
+import { useWebSocket } from "@/hooks/use-websocket";
+import { type Message } from "@/lib/types";
 
 const navItems = [
   { label: "Dashboard", href: "/" },
   { label: "Features", href: "/features" },
   { label: "Agents", href: "/agents" },
   { label: "Runs", href: "/runs" },
+  { label: "Messages", href: "/messages" },
 ];
 
 const bottomItems: typeof navItems = [];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: messages, refetch } = useApi<Message[]>("/api/messages?status=pending");
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+
+  // Compute from fetched data
+  const count = pendingCount ?? (messages?.length ?? 0);
+
+  // Live updates via WebSocket
+  const onWsEvent = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      if (event.type.startsWith("message.")) {
+        refetch().then(() => setPendingCount(null));
+      }
+    },
+    [refetch],
+  );
+
+  useWebSocket({ filter: "message.", onEvent: onWsEvent });
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
@@ -35,13 +57,18 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex items-center rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
+            className={`flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
               isActive(item.href)
                 ? "bg-primary/10 text-primary"
                 : "text-text-secondary hover:bg-gray-100 hover:text-text"
             }`}
           >
             {item.label}
+            {item.href === "/messages" && count > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-white">
+                {count}
+              </span>
+            )}
           </Link>
         ))}
       </nav>

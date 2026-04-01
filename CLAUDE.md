@@ -125,5 +125,14 @@ src/
   - Tests critiques: `vitest` — parser, validation, services CRUD, recovery, rate limiting (50 tests)
   - Purge run_events: `lib/purge.ts` — scheduler toutes les heures, supprime les events > 24h
   - Rate limiting: `lib/rate-limit.ts` — limite de spawns concurrents (MAX_CONCURRENT_AGENTS, defaut 5)
-- **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
+- **Phase 4 (DONE)**: Stop/restart agents, messages utilisateur
+  - Stop agent: `POST /api/agents/[id]/stop` — arrete tous les runs actifs d'un agent, force le statut a "stopped"
+  - Reset agent: bouton UI "Reset to Idle" pour remettre un agent stoppe en "idle" via PATCH
+  - Boutons Stop/Reset sur les cartes agents avec live updates WebSocket
+  - Messages CRUD complet: `GET/PATCH/DELETE /api/messages/[id]` — lecture, mark-as-read, suppression
+  - Service message enrichi: `getMessage()`, `deleteMessage()`, `markAsRead()`
+  - WebSocket broadcasts: `message.created`, `message.read`, `message.deleted`
+  - Page Messages (`/messages`): inbox avec filtres (all/pending/read), creation, mark-as-read, suppression
+  - Notification badge: compteur de messages pending dans la sidebar, mis a jour en temps reel via WebSocket
+  - Panel messages sur la page feature detail: envoi de messages lies a une feature, affichage inline
 - **Phase 5 (A FAIRE)**: Skills, dashboard avance (stats reelles, activite recente, features actives), config, historique, stats, CLI avance

@@ -33,6 +33,16 @@ export function createMessage(data: {
   return row;
 }
 
+export function getMessage(id: string) {
+  const db = getDb();
+  return db.select().from(messages).where(eq(messages.id, id)).get();
+}
+
+export function deleteMessage(id: string) {
+  const db = getDb();
+  db.delete(messages).where(eq(messages.id, id)).run();
+}
+
 export function markAsRead(id: string) {
   const db = getDb();
   const now = new Date().toISOString();

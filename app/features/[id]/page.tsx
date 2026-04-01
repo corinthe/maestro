@@ -13,6 +13,7 @@ import {
   type Run,
   type RunStatus,
   type Agent,
+  type Message,
   FEATURE_STATUSES,
   FEATURE_STATUS_LABELS,
   FEATURE_STATUS_VARIANT,
@@ -25,6 +26,7 @@ export default function FeatureDetailPage() {
   const { data: feature, loading, error, refetch } = useApi<Feature>(`/api/features/${params.id}`);
   const { data: runs } = useApi<Run[]>(`/api/runs?featureId=${params.id}`);
   const { data: agents } = useApi<Agent[]>("/api/agents");
+  const { data: allMessages, refetch: refetchMessages } = useApi<Message[]>("/api/messages");
   const [updating, setUpdating] = useState(false);
 
   // Run form state
@@ -33,12 +35,29 @@ export default function FeatureDetailPage() {
   const [prompt, setPrompt] = useState("");
   const [startingRun, setStartingRun] = useState(false);
 
+  // Message form state
+  const [messageContent, setMessageContent] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+
   async function handleStatusChange(newStatus: string) {
     if (!feature || updating) return;
     setUpdating(true);
     const { error } = await apiPatch(`/api/features/${params.id}`, { status: newStatus });
     if (!error) await refetch();
     setUpdating(false);
+  }
+
+  async function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!messageContent.trim()) return;
+    setSendingMessage(true);
+    await apiPost("/api/messages", {
+      content: messageContent.trim(),
+      featureId: params.id,
+    });
+    setSendingMessage(false);
+    setMessageContent("");
+    await refetchMessages();
   }
 
   async function handleStartRun(e: React.FormEvent) {
@@ -193,6 +212,67 @@ export default function FeatureDetailPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Messages section */}
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h2 className="mb-4 text-sm font-medium text-text">Messages</h2>
+
+        {/* Send message form */}
+        <form onSubmit={handleSendMessage} className="mb-4 flex gap-2">
+          <Textarea
+            value={messageContent}
+            onChange={(e) => setMessageContent(e.target.value)}
+            rows={2}
+            placeholder="Send a message about this feature..."
+            className="flex-1"
+          />
+          <Button type="submit" size="sm" disabled={sendingMessage}>
+            {sendingMessage ? "Sending..." : "Send"}
+          </Button>
+        </form>
+
+        {/* Messages list */}
+        {(() => {
+          const featureMessages = (allMessages ?? []).filter(
+            (m) => m.featureId === params.id,
+          );
+          if (featureMessages.length === 0) {
+            return (
+              <p className="text-sm text-text-secondary">No messages yet.</p>
+            );
+          }
+          return (
+            <div className="space-y-2">
+              {featureMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`rounded-md border px-4 py-2.5 ${
+                    msg.status === "pending"
+                      ? "border-primary/30 bg-primary/5"
+                      : "border-border"
+                  }`}
+                >
+                  <div className="mb-1 flex items-center justify-between">
+                    <Badge
+                      variant={
+                        msg.status === "pending" ? "info" : "default"
+                      }
+                    >
+                      {msg.status}
+                    </Badge>
+                    <span className="text-xs text-text-secondary">
+                      {new Date(msg.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm text-text">
+                    {msg.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
