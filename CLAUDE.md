@@ -118,7 +118,6 @@ src/
   - Tests critiques: parser Claude, agent-runner, orchestrateur, services CRUD
   - Purge run_events: implementer la purge apres 24h (documentee mais absente)
   - Rate limiting: limiter les appels API et les spawns d'agents concurrents
-  - Auth basique: protection des API routes (token ou reverse proxy)
   - Dashboard connecte: remplacer les stats hardcodees par de vraies requetes DB
 - **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
 - **Phase 5 (A FAIRE)**: Skills, dashboard avance, config, historique, stats, CLI avance
