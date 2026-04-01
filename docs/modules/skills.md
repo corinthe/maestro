@@ -1,8 +1,8 @@
 # Module Skills & Prompts
 
-## Responsabilite
+## Responsabilité
 
-Gestion de la bibliotheque de skills (au format natif Claude Code) et des templates de prompts. Les skills sont attaches aux agents pour guider leur comportement. A terme, ils pourront etre partages via un registre centralise.
+Gestion de la bibliothèque de skills (au format natif Claude Code) et des templates de prompts. Les skills sont attaches aux agents pour guider leur comportement. A terme, ils pourront être partagés via un registre centralisé.
 
 ## Concepts
 
@@ -21,7 +21,7 @@ When reviewing code, follow these guidelines:
 - Validate naming conventions match the project style
 ```
 
-Les skills sont stockes dans `.maestro/skills/` et sont injectes dans Claude via le flag `--add-dir`.
+Les skills sont stockés dans `.maestro/skills/` et sont injectés dans Claude via le flag `--add-dir`.
 
 ### Prompt template
 
@@ -74,14 +74,14 @@ skills:
 
 Avant chaque run, Maestro :
 
-1. Cree un repertoire temporaire avec les skills de l'agent
-2. Y copie ou symlinke les fichiers `.md` concernes
+1. Crée un répertoire temporaire avec les skills de l'agent
+2. Y copie ou symlinke les fichiers `.md` concernés
 3. Passe `--add-dir <temp-skills-dir>` a Claude CLI
-4. Nettoie le repertoire temporaire apres le run
+4. Nettoie le répertoire temporaire après le run
 
-## Registre centralise (futur)
+## Registre centralisé (futur)
 
-Le registre permettra de partager des skills et des configurations d'agents entre projets et equipes.
+Le registre permettra de partager des skills et des configurations d'agents entre projets et équipes.
 
 ### Vision
 
@@ -96,7 +96,7 @@ Le registre permettra de partager des skills et des configurations d'agents entr
                                    └──────────────────┘
 ```
 
-### Operations envisagees
+### Operations envisagées
 
 ```
 # Publier un skill sur le registre
@@ -111,9 +111,9 @@ npx maestro skill search "testing"
 
 ### Scope
 
-- **Publics** : accessibles a tous
-- **Equipe** : scopes a une organisation (`@team/skill-name`)
-- **Prives** : accessibles uniquement au createur
+- **Publics** : accessibles à tous
+- **Equipe** : scopés à une organisation (`@team/skill-name`)
+- **Prives** : accessibles uniquement au créateur
 
 > Le registre n'est pas dans le scope du MVP. Les skills sont geres localement dans le repo.
 
@@ -122,7 +122,7 @@ npx maestro skill search "testing"
 L'interface permet de :
 
 - **Lister** les skills du projet
-- **Creer** un nouveau skill (editeur Markdown)
+- **Créer** un nouveau skill (éditeur Markdown)
 - **Editer** un skill existant
 - **Supprimer** un skill
 - **Voir** quels agents utilisent un skill
@@ -142,8 +142,8 @@ lib/
 
 | | Skill | Agent |
 |---|---|---|
-| **Nature** | Fichier d'instructions (`.md`) | Entite d'execution avec config |
+| **Nature** | Fichier d'instructions (`.md`) | Entite d'exécution avec config |
 | **Persistance** | Fichier dans `.maestro/skills/` | Fichier YAML dans `.maestro/agents/` |
-| **Relation** | Attache a un ou plusieurs agents | Utilise un ou plusieurs skills |
+| **Relation** | Attache à un ou plusieurs agents | Utilise un ou plusieurs skills |
 | **Partage** | Via registre (futur) | Via registre (futur) |
 | **Exemples** | "code-review", "testing-strategy" | "backend-dev", "frontend-dev" |

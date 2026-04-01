@@ -1,20 +1,20 @@
 # Module Testing
 
-## Responsabilite
+## Responsabilité
 
-Strategie de tests pour valider le fonctionnement de Maestro sans consommer de tokens Claude a chaque execution.
+Stratégie de tests pour valider le fonctionnement de Maestro sans consommer de tokens Claude à chaque exécution.
 
 ## Principes
 
-1. **Mock Claude CLI** pour les tests automatises — pas d'appels reels sauf smoke tests
+1. **Mock Claude CLI** pour les tests automatisés — pas d'appels réels sauf smoke tests
 2. **Tests unitaires** pour la logique pure (parser, args builder, config, DB)
-3. **Tests d'integration** pour les pipelines complets (spawn → parse → DB → WebSocket)
+3. **Tests d'intégration** pour les pipelines complets (spawn → parse → DB → WebSocket)
 4. **Tests E2E** pour l'UI (Playwright)
-5. **Smoke tests** avec le vrai Claude CLI, lances manuellement
+5. **Smoke tests** avec le vrai Claude CLI, lancés manuellement
 
 ## Mock Claude CLI
 
-Un script qui simule le comportement de Claude CLI en produisant une sortie `stream-json` predeterminee.
+Un script qui simule le comportement de Claude CLI en produisant une sortie `stream-json` predéterminée.
 
 ### Implementation
 
@@ -46,8 +46,8 @@ process.exit(0);
 | Scenario | Fichier | Comportement |
 |----------|---------|--------------|
 | Succes | `mock-claude-success.mjs` | Run normal avec tool calls |
-| Echec | `mock-claude-failure.mjs` | Sortie avec `is_error: true` |
-| Timeout | `mock-claude-timeout.mjs` | Ne se termine jamais (pour tester le timeout) |
+| Échec | `mock-claude-failure.mjs` | Sortie avec `is_error: true` |
+| Timeout | `mock-claude-timeout.mjs` | Ne se terminé jamais (pour tester le timeout) |
 | Max turns | `mock-claude-max-turns.mjs` | Sortie avec `subtype: "error_max_turns"` |
 | Login requis | `mock-claude-login.mjs` | Message "please run claude login" |
 | Session inconnue | `mock-claude-bad-session.mjs` | Erreur "unknown session" |
@@ -103,18 +103,18 @@ describe("parseClaudeStreamJson", () => {
 });
 ```
 
-### 2. Tests d'integration (Vitest + mock CLI)
+### 2. Tests d'intégration (Vitest + mock CLI)
 
-Testent les pipelines complets avec le mock Claude CLI et une DB SQLite en memoire.
+Testent les pipelines complets avec le mock Claude CLI et une DB SQLite en mémoire.
 
 | Pipeline | Ce qui est teste |
 |----------|-----------------|
 | Agent run | spawn mock → parse → save events → emit WS |
-| Orchestrator run | spawn mock + MCP → decisions → agent launched |
+| Orchestrator run | spawn mock + MCP → décisions → agent launched |
 | Heartbeat | tick → orchestrator wake → agent dispatch |
-| Session resume | run succeeds → session saved → next run resumes |
-| Stop/restart | SIGTERM → status update → restart with resume |
-| Orphan reaper | stale run detected → marked as failed |
+| Session résumé | run succeeds → session saved → next run résumés |
+| Stop/restart | SIGTERM → status update → restart with résumé |
+| Orphan reaper | stale run détected → marked as failed |
 | Log purge | events > 24h deleted |
 
 ```typescript
@@ -148,16 +148,16 @@ describe("agent run integration", () => {
 
 ### 3. Tests E2E (Playwright)
 
-Testent l'UI complete avec le serveur lance et le mock Claude CLI.
+Testent l'UI complété avec le serveur lancé et le mock Claude CLI.
 
 | Scenario | Ce qui est teste |
 |----------|-----------------|
 | Initialisation | Page dashboard charge correctement |
-| Creer une feature | Formulaire → feature visible dans la liste |
-| Creer un agent | Formulaire → agent visible, fichier YAML cree |
-| Live view | Run mock → events affichees en temps reel |
-| Stop un run | Bouton stop → processus arrete → statut mis a jour |
-| Propositions | Proposition d'agent → notification → accepter → agent cree |
+| Créer une feature | Formulaire → feature visible dans la liste |
+| Créer un agent | Formulaire → agent visible, fichier YAML crée |
+| Live view | Run mock → events affichées en temps réel |
+| Stop un run | Bouton stop → processus arrête → statut mis à jour |
+| Propositions | Proposition d'agent → notification → accepter → agent crée |
 
 ```typescript
 // Exemple : test E2E de creation de feature
@@ -173,20 +173,20 @@ test("create a feature", async ({ page }) => {
 });
 ```
 
-### 4. Smoke tests (Claude CLI reel)
+### 4. Smoke tests (Claude CLI réel)
 
-Tests manuels ou CI optionnels qui utilisent le vrai Claude CLI. Budgetes et plafonnes.
+Tests manuels ou CI optionnels qui utilisent le vrai Claude CLI. Budgetes et plafonnés.
 
 **Quand les lancer :**
 - Avant une release
-- Apres un changement majeur dans l'adaptateur Claude
+- Après un changement majeur dans l'adaptateur Claude
 - Jamais en CI automatique (cout)
 
 **Ce qu'ils testent :**
-- Claude CLI demarre et produit du stream-json valide
-- Le parser gere la sortie reelle (pas juste le mock)
-- Le resume de session fonctionne avec le vrai Claude
-- Les skills sont correctement injectes
+- Claude CLI démarre et produit du stream-json valide
+- Le parser gère la sortie réelle (pas juste le mock)
+- Le résumé de session fonctionne avec le vrai Claude
+- Les skills sont correctement injectés
 
 ```bash
 # Lancer les smoke tests (necessite ANTHROPIC_API_KEY ou claude login)

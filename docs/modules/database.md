@@ -1,20 +1,20 @@
 # Module Database
 
-## Responsabilite
+## Responsabilité
 
-Persistance locale de toutes les donnees de Maestro via SQLite embarque. Zero configuration, zero daemon externe.
+Persistance locale de toutes les données de Maestro via SQLite embarqué. Zero configuration, zero daemon externe.
 
 ## Choix technique
 
 - **SQLite** via `better-sqlite3` : synchrone, rapide, fiable, un seul fichier
-- **Drizzle ORM** : type-safe, leger, migrations declaratives
+- **Drizzle ORM** : type-safe, léger, migrations déclaratives
 - **Emplacement** : `.maestro/db.sqlite` (gitignore)
 
 ## Schema
 
 ### Table `agents`
 
-Stocke la configuration des agents (source de verite : fichiers YAML, la DB est un cache enrichi avec l'etat runtime).
+Stocke la configuration des agents (source de verite : fichiers YAML, la DB est un cache enrichi avec l'état runtime).
 
 ```sql
 CREATE TABLE agents (
@@ -30,7 +30,7 @@ CREATE TABLE agents (
 
 ### Table `features`
 
-Les features/taches a realiser.
+Les features/taches à réaliser.
 
 ```sql
 CREATE TABLE features (
@@ -49,7 +49,7 @@ CREATE TABLE features (
 
 ### Table `runs`
 
-Chaque execution d'un agent ou de l'orchestrateur.
+Chaque exécution d'un agent ou de l'orchestrateur.
 
 ```sql
 CREATE TABLE runs (
@@ -80,7 +80,7 @@ CREATE INDEX idx_runs_type ON runs(run_type);
 
 ### Table `run_events`
 
-Tous les events d'un run (flux stream-json de Claude). **Purges apres 24h.**
+Tous les events d'un run (flux stream-json de Claude). **Purges après 24h.**
 
 ```sql
 CREATE TABLE run_events (
@@ -99,7 +99,7 @@ CREATE INDEX idx_run_events_created ON run_events(created_at);
 
 ### Table `skills`
 
-Metadonnees des skills (le contenu est dans les fichiers `.md`).
+Metadonnées des skills (le contenu est dans les fichiers `.md`).
 
 ```sql
 CREATE TABLE skills (
@@ -126,7 +126,7 @@ CREATE TABLE agent_skills (
 
 ### Table `sessions`
 
-Sessions Claude pour le resume (orchestrateur et agents).
+Sessions Claude pour le résumé (orchestrateur et agents).
 
 ```sql
 CREATE TABLE sessions (
@@ -146,7 +146,7 @@ CREATE INDEX idx_sessions_owner ON sessions(owner_type);
 
 ### Table `messages`
 
-Messages de l'utilisateur en attente (lus par l'orchestrateur au prochain reveil).
+Messages de l'utilisateur en attente (lus par l'orchestrateur au prochain réveil).
 
 ```sql
 CREATE TABLE messages (
@@ -192,7 +192,7 @@ CREATE TABLE config (
 
 ## Migrations
 
-Drizzle gere les migrations de schema de maniere declarative :
+Drizzle gère les migrations de schema de manière déclarative :
 
 ```
 lib/
@@ -204,28 +204,28 @@ lib/
         └── ...
 ```
 
-Les migrations sont executees automatiquement au demarrage du serveur.
+Les migrations sont exécutées automatiquement au démarrage du serveur.
 
 ## Synchronisation fichiers <-> DB
 
-Les agents et skills existent a la fois comme fichiers (`.maestro/agents/*.yml`, `.maestro/skills/*.md`) et en DB. La regle :
+Les agents et skills existent à la fois comme fichiers (`.maestro/agents/*.yml`, `.maestro/skills/*.md`) et en DB. La regle :
 
 - **Fichiers = source de verite** pour la configuration
-- **DB = source de verite** pour l'etat runtime (status, sessions, runs)
-- Au demarrage, Maestro synchronise les fichiers vers la DB (ajout, mise a jour, suppression)
-- Les modifications via l'UI ecrivent d'abord le fichier, puis mettent a jour la DB
+- **DB = source de verite** pour l'état runtime (status, sessions, runs)
+- Au démarrage, Maestro synchronise les fichiers vers la DB (ajout, mise à jour, suppression)
+- Les modifications via l'UI ecrivent d'abord le fichier, puis mettent à jour la DB
 
-## Retention des donnees
+## Rétention des données
 
-| Table | Retention |
+| Table | Rétention |
 |-------|-----------|
 | `run_events` | **24 heures** — purge automatique par le heartbeat |
-| `runs` | Indefini — conserves pour historique et stats de cout |
-| `messages` | Indefini — marques comme `read` apres traitement |
-| `proposals` | Indefini — marques comme `accepted` ou `rejected` |
-| Toutes les autres | Indefini |
+| `runs` | Indéfini — conservés pour historique et stats de coût |
+| `messages` | Indéfini — marqués comme `read` après traitement |
+| `proposals` | Indéfini — marqués comme `accepted` ou `rejected` |
+| Toutes les autres | Indéfini |
 
-## Volumetrie attendue
+## Volumétrie attendue
 
 En usage solo :
 
@@ -234,7 +234,7 @@ En usage solo :
 | agents | 2-5 lignes |
 | features | 10-50 lignes |
 | runs | 100-500 lignes |
-| run_events | < 50k lignes (grace a la purge 24h) |
+| run_events | < 50k lignes (grace à la purge 24h) |
 | skills | 5-20 lignes |
 | messages | < 100 lignes |
 | proposals | < 20 lignes |
