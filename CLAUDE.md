@@ -114,7 +114,14 @@ src/
   - Recovery au demarrage: detecter les runs orphelins "running" et les marquer `failed`
   - Mutex orchestrateur: empecher les wakeups concurrents (verrou en DB ou in-memory)
   - Validation des inputs: schema validation sur prompts, configs agents, noms/titres
-  - Logging structure: logs sur runs, spawns, erreurs, actions orchestrateur (minimum)
+  - Logging structure: logger centralise (`lib/logger.ts`, JSON vers stdout, niveaux debug/info/warn/error, LOG_LEVEL configurable)
+    - agent-runner: run start/end, agentId, featureId, duree, statut final, exit code, erreur
+    - adapter: spawn process (PID, commande, args), stderr, timeout, kill signal
+    - orchestrator: wake trigger (heartbeat/manual), decision, assignment agent→feature, stop, erreur
+    - heartbeat: tick, skip (deja running), wake result
+    - parser: erreurs de parsing JSON invalide, ligne brute en contexte
+    - API routes: erreurs 4xx/5xx avec route, methode, body (sans donnees sensibles)
+    - services: erreurs DB (query, params), echecs CRUD
   - Tests critiques: parser Claude, agent-runner, orchestrateur, services CRUD
   - Purge run_events: implementer la purge apres 24h (documentee mais absente)
   - Rate limiting: limiter les appels API et les spawns d'agents concurrents
