@@ -1,8 +1,8 @@
 # Module Server / API
 
-## Responsabilite
+## Responsabilité
 
-Serveur Next.js qui expose l'API REST, le serveur MCP interne (pour l'orchestrateur), gere les connexions WebSocket temps reel, et orchestre les services metier.
+Serveur Next.js qui expose l'API REST, le serveur MCP interne (pour l'orchestrateur), gère les connexions WebSocket temps réel, et orchestre les services métier.
 
 ## API Routes
 
@@ -10,84 +10,84 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 
 ### Features
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/features` | Liste des features (filtres: status, agent) |
-| POST | `/api/features` | Creer une feature |
+| POST | `/api/features` | Créer une feature |
 | GET | `/api/features/:id` | Detail d'une feature |
-| PATCH | `/api/features/:id` | Modifier une feature (titre, description, statut, priorite) |
+| PATCH | `/api/features/:id` | Modifier une feature (titre, description, statut, priorité) |
 | DELETE | `/api/features/:id` | Supprimer une feature |
 
 ### Agents
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/agents` | Liste des agents et leur statut |
-| POST | `/api/agents` | Creer un agent |
+| POST | `/api/agents` | Créer un agent |
 | GET | `/api/agents/:id` | Detail d'un agent (config, stats) |
 | PATCH | `/api/agents/:id` | Modifier la configuration d'un agent |
 | DELETE | `/api/agents/:id` | Supprimer un agent |
-| POST | `/api/agents/:id/stop` | Arreter un agent en cours |
+| POST | `/api/agents/:id/stop` | Arrêter un agent en cours |
 
 ### Orchestrator
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/orchestrator/status` | Statut de l'orchestrateur (idle, running) |
-| POST | `/api/orchestrator/wake` | Reveiller l'orchestrateur immediatement |
+| POST | `/api/orchestrator/wake` | Réveiller l'orchestrateur immédiatement |
 | GET | `/api/orchestrator/runs` | Historique des runs de l'orchestrateur |
 
-### Runs (executions)
+### Runs (exécutions)
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/runs` | Liste des runs (filtres: agent, feature, status) |
 | GET | `/api/runs/:id` | Detail d'un run avec events |
-| GET | `/api/runs/:id/events` | Events d'un run (polling fallback, paginee) |
-| POST | `/api/runs/:id/stop` | Arreter un run |
+| GET | `/api/runs/:id/events` | Events d'un run (polling fallback, paginée) |
+| POST | `/api/runs/:id/stop` | Arrêter un run |
 | POST | `/api/runs/:id/restart` | Relancer un run |
 
 ### Messages
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
-| POST | `/api/messages` | Envoyer un message (lu par l'orchestrateur au prochain reveil) |
+| POST | `/api/messages` | Envoyer un message (lu par l'orchestrateur au prochain réveil) |
 | GET | `/api/messages` | Messages en attente |
 
 ### Agent proposals
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/proposals` | Propositions d'agents de l'orchestrateur |
-| POST | `/api/proposals/:id/accept` | Accepter une proposition (cree l'agent) |
+| POST | `/api/proposals/:id/accept` | Accepter une proposition (crée l'agent) |
 | POST | `/api/proposals/:id/reject` | Rejeter une proposition |
 
 ### Skills
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/skills` | Liste des skills locaux |
-| POST | `/api/skills` | Creer un skill |
+| POST | `/api/skills` | Créer un skill |
 | GET | `/api/skills/:id` | Contenu d'un skill |
 | PUT | `/api/skills/:id` | Modifier un skill |
 | DELETE | `/api/skills/:id` | Supprimer un skill |
 
 ### Config
 
-| Methode | Route | Description |
+| Méthode | Route | Description |
 |---------|-------|-------------|
 | GET | `/api/config` | Configuration globale |
 | PATCH | `/api/config` | Modifier la configuration |
 
 ## MCP Server interne
 
-Le serveur MCP est le pont entre l'orchestrateur (Claude CLI) et Maestro. Il expose les outils que l'orchestrateur utilise pour lire l'etat du projet et lancer des agents.
+Le serveur MCP est le pont entre l'orchestrateur (Claude CLI) et Maestro. Il expose les outils que l'orchestrateur utilise pour lire l'état du projet et lancer des agents.
 
-Voir [orchestrator.md](orchestrator.md) pour la liste complete des outils MCP.
+Voir [orchestrator.md](orchestrator.md) pour la liste complété des outils MCP.
 
 ### Implementation
 
-Le serveur MCP utilise le protocole stdio. Quand l'orchestrateur est spawne, Maestro passe un fichier de configuration MCP qui pointe vers le serveur interne :
+Le serveur MCP utilise le protocole stdio. Quand l'orchestrateur est spawne, Maestro passé un fichier de configuration MCP qui pointe vers le serveur interne :
 
 ```typescript
 // Simplifie
@@ -110,7 +110,7 @@ class MaestroMcpServer {
 
 ## WebSocket
 
-Un endpoint WebSocket (`/api/ws`) fournit les events temps reel.
+Un endpoint WebSocket (`/api/ws`) fournit les events temps réel.
 
 ### Events serveur → client
 
@@ -209,7 +209,7 @@ app/
 
 ## Gestion des erreurs
 
-Les API routes retournent des reponses standardisees :
+Les API routes retournent des réponses standardisées :
 
 ```typescript
 // Succes
@@ -219,4 +219,4 @@ Les API routes retournent des reponses standardisees :
 { error: { code: string, message: string } }
 ```
 
-Codes HTTP : 200 (succes), 201 (cree), 400 (validation), 404 (introuvable), 500 (interne).
+Codes HTTP : 200 (succès), 201 (créé), 400 (validation), 404 (introuvable), 500 (interne).

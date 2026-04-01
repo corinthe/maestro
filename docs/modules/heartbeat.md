@@ -1,14 +1,14 @@
 # Module Heartbeat
 
-## Responsabilite
+## Responsabilité
 
-Scheduler autonome qui reveille periodiquement l'**orchestrateur** pour qu'il evalue l'etat du projet et delegue du travail aux agents. Gere aussi les wakeups manuels et la surveillance des runs en cours.
+Scheduler autonome qui réveille périodiquement l'**orchestrateur** pour qu'il évalue l'état du projet et délègue du travail aux agents. Gère aussi les wakeups manuels et la surveillance des runs en cours.
 
 ## Concept
 
-Le heartbeat est un **cron interne** au serveur Maestro. A intervalles reguliers, il spawne l'orchestrateur (un agent Claude) qui decide quoi faire. Le heartbeat ne dispatche jamais directement du travail aux agents — c'est toujours l'orchestrateur qui decide.
+Le heartbeat est un **cron interne** au serveur Maestro. À intervalles réguliers, il spawne l'orchestrateur (un agent Claude) qui décide quoi faire. Le heartbeat ne dispatche jamais directement du travail aux agents — c'est toujours l'orchestrateur qui décide.
 
-L'utilisateur peut aussi declencher un wakeup manuel (via l'UI ou `npx maestro wake`), ce qui reveille immediatement l'orchestrateur.
+L'utilisateur peut aussi déclencher un wakeup manuel (via l'UI ou `npx maestro wake`), ce qui réveille immédiatement l'orchestrateur.
 
 ## Cycle du heartbeat
 
@@ -51,13 +51,13 @@ heartbeat:
 
 ## Wakeup manuel
 
-Un wakeup manuel reveille immediatement l'orchestrateur :
+Un wakeup manuel réveille immédiatement l'orchestrateur :
 
 ```
 POST /api/orchestrator/wake
 ```
 
-Le wakeup ne force pas un run. Il spawne l'orchestrateur qui evalue si du travail doit etre fait.
+Le wakeup ne force pas un run. Il spawné l'orchestrateur qui évalue si du travail doit être fait.
 
 Depuis le CLI :
 
@@ -65,9 +65,9 @@ Depuis le CLI :
 npx maestro wake          # Reveille l'orchestrateur
 ```
 
-## Guard : eviter les spawns inutiles
+## Guard : éviter les spawns inutiles
 
-Avant de spawner l'orchestrateur, le heartbeat verifie qu'il y a effectivement quelque chose de nouveau a traiter. Sans cette guard, l'orchestrateur consommerait des tokens a chaque tick pour conclure "rien a faire".
+Avant de spawner l'orchestrateur, le heartbeat vérifie qu'il y a effectivement quelque chose de nouveau à traiter. Sans cette guard, l'orchestrateur consommerait des tokens à chaque tick pour conclure "rien à faire".
 
 ```typescript
 function hasWorkToDo(): boolean {
@@ -104,13 +104,13 @@ function hasWorkToDo(): boolean {
 
 Si `hasWorkToDo()` retourne `false`, le heartbeat skip le tick sans spawner l'orchestrateur.
 
-## Surveillance des runs
+## Surveillancé des runs
 
 Le heartbeat surveille les runs en cours (orchestrateur et agents) :
 
-### Detection de runs orphelins
+### Détection de runs orphelins
 
-Un run peut devenir orphelin si le processus Claude CLI crashe. Le heartbeat detecte ces cas :
+Un run peut devenir orphelin si le processus Claude CLI crashe. Le heartbeat détecte ces cas :
 
 ```typescript
 function reapOrphanedRuns() {
@@ -129,16 +129,16 @@ function reapOrphanedRuns() {
 
 ### Timeout
 
-Si un run depasse son `timeoutSec`, le heartbeat :
+Si un run dépasse son `timeoutSec`, le heartbeat :
 
 1. Envoie SIGTERM au processus
 2. Attend `graceSec`
-3. Envoie SIGKILL si necessaire
+3. Envoie SIGKILL si nécessaire
 4. Marque le run comme `timed_out`
 
-## Events emis
+## Events émis
 
-Le heartbeat emet des events via WebSocket :
+Le heartbeat émet des events via WebSocket :
 
 | Event | Quand |
 |-------|-------|
@@ -146,18 +146,18 @@ Le heartbeat emet des events via WebSocket :
 | `agent.status` | Un agent change de statut |
 | `run.status` | Un run change de statut |
 
-## Reprise apres redemarrage
+## Reprise après redémarrage
 
-Quand Maestro redemarre (apres un `dev` stop/start) :
+Quand Maestro redémarre (après un `dev` stop/start) :
 
-1. Les runs en statut `running` sont verifiees
+1. Les runs en statut `running` sont vérifiees
 2. Si le processus n'existe plus → marquer comme `failed` (orphelin)
 3. Le heartbeat reprend son cycle normal
-4. L'orchestrateur sera reveille au prochain tick pour evaluer la situation
+4. L'orchestrateur sera réveille au prochain tick pour évaluer la situation
 
 ## Purge automatique des logs
 
-Les `run_events` de plus de **24 heures** sont purges automatiquement a chaque tick du heartbeat :
+Les `run_events` de plus de **24 heures** sont purgés automatiquement à chaque tick du heartbeat :
 
 ```typescript
 function purgeOldEvents() {
@@ -166,7 +166,7 @@ function purgeOldEvents() {
 }
 ```
 
-Les runs eux-memes (table `runs`) sont conserves indefiniment pour l'historique et les statistiques de cout. Seuls les events detailles (le flux stream-json) sont purges.
+Les runs eux-mêmes (table `runs`) sont conservés indéfiniment pour l'historique et les statistiques de cout. Seuls les events détaillés (le flux stream-json) sont purgés.
 
 ## Structure technique
 
@@ -178,7 +178,7 @@ lib/
     └── log-purge.ts        # Purge des events > 24h
 ```
 
-## Diagramme de sequence : heartbeat tick
+## Diagramme de séquence : heartbeat tick
 
 ```
 Scheduler       OrchestratorService     AgentService        Claude Adapter

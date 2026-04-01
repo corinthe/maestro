@@ -1,8 +1,8 @@
 # Module CLI
 
-## Responsabilite
+## Responsabilité
 
-Point d'entree en ligne de commande pour initialiser Maestro dans un repo, lancer le serveur local, et effectuer des operations ponctuelles.
+Point d'entrée en ligne de commande pour initialiser Maestro dans un repo, lancer le serveur local, et effectuer des opérations ponctuelles.
 
 ## Commandes
 
@@ -11,16 +11,16 @@ Point d'entree en ligne de commande pour initialiser Maestro dans un repo, lance
 Initialise Maestro dans le repo courant.
 
 **Actions :**
-1. Verifie qu'on est dans un repo git
-2. Cree le repertoire `.maestro/`
-3. Genere `config.yml` avec les defaults
-4. Cree les sous-repertoires (`agents/`, `skills/`)
+1. Vérifie qu'on est dans un repo git
+2. Crée le répertoire `.maestro/`
+3. Génère `config.yml` avec les defaults
+4. Crée les sous-répertoires (`agents/`, `skills/`)
 5. Initialise la base SQLite (`db.sqlite`)
-6. Met a jour `.gitignore` (ajoute `db.sqlite`)
-7. Cree les agents par defaut :
-   - `developer.yml` — agent de developpement generaliste
-   - `qa-engineer.yml` — agent QA qui verifie le travail des autres agents
-8. Installe les dependances si necessaire
+6. Met à jour `.gitignore` (ajouté `db.sqlite`)
+7. Crée les agents par défaut :
+   - `developer.yml` — agent de développement généraliste
+   - `qa-engineer.yml` — agent QA qui vérifie le travail des autres agents
+8. Installe les dépendances si nécessaire
 
 ```
 $ npx maestro init
@@ -37,14 +37,14 @@ $ npx maestro init
 Lance le serveur Next.js local et ouvre le navigateur.
 
 **Actions :**
-1. Verifie que `.maestro/` existe (sinon suggere `init`)
-2. Demarre le serveur Next.js sur un port disponible (defaut: 4200)
-3. Demarre le heartbeat scheduler
+1. Vérifie que `.maestro/` existe (sinon suggère `init`)
+2. Démarre le serveur Next.js sur un port disponible (défaut: 4200)
+3. Démarre le heartbeat scheduler
 4. Ouvre le navigateur sur `http://localhost:4200`
 
 ### `npx maestro status`
 
-Affiche l'etat courant dans le terminal.
+Affiche l'état courant dans le terminal.
 
 ```
 $ npx maestro status
@@ -59,7 +59,7 @@ $ npx maestro status
 
 ### `npx maestro wake`
 
-Reveille l'orchestrateur immediatement pour qu'il evalue l'etat du projet et delegue du travail.
+Reveille l'orchestrateur immédiatement pour qu'il évalue l'état du projet et délègue du travail.
 
 ```
 $ npx maestro wake
@@ -69,11 +69,11 @@ $ npx maestro wake
 
 ### `npx maestro stop [agent]`
 
-Arrete proprement un agent en cours d'execution (SIGTERM + grace period).
+Arrete proprement un agent en cours d'exécution (SIGTERM + grace period).
 
 ### `npx maestro doctor`
 
-Verifie l'environnement (Claude CLI installe, git disponible, config valide).
+Vérifie l'environnement (Claude CLI installé, git disponible, config valide).
 
 ## Structure technique
 
@@ -96,7 +96,7 @@ packages/cli/
 └── tsconfig.json
 ```
 
-## Dependances cles
+## Dépendances clés
 
 - **commander** ou **citty** : parsing des commandes CLI
 - **picocolors** : couleurs terminal

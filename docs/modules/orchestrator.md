@@ -1,23 +1,23 @@
 # Module Orchestrator
 
-## Responsabilite
+## Responsabilité
 
-L'orchestrateur est un **agent Claude** special qui coordonne les agents worker. Il ne code pas, il ne modifie pas le projet directement. Il planifie, delegue, fournit du contexte, et s'assure que les agents ne se marchent pas dessus.
+L'orchestrateur est un **agent Claude** spécial qui coordonne les agents worker. Il ne code pas, il ne modifie pas le projet directement. Il planifie, délègue, fournit du contexte, et s'assure que les agents ne se marchent pas dessus.
 
 ## Concept
 
-L'orchestrateur est le **manager** de l'equipe d'agents. Il est spawne periodiquement par le heartbeat (ou manuellement par l'utilisateur). A chaque reveil, il :
+L'orchestrateur est le **manager** de l'équipe d'agents. Il est spawné périodiquement par le heartbeat (ou manuellement par l'utilisateur). À chaque réveil, il :
 
-1. Evalue l'etat du projet (features en attente, agents disponibles, travail en cours)
-2. Decide quels agents doivent travailler sur quoi
-3. Fournit le contexte necessaire a chaque agent
+1. Évalue l'état du projet (features en attente, agents disponibles, travail en cours)
+2. Décide quels agents doivent travailler sur quoi
+3. Fournit le contexte nécessaire à chaque agent
 4. Lance les agents via les outils MCP
-5. Peut proposer a l'utilisateur de creer de nouveaux archetypes d'agents
+5. Peut proposer à l'utilisateur de créer de nouveaux archétypes d'agents
 
 L'orchestrateur ne peut PAS :
 - Modifier des fichiers du projet
-- Executer des commandes systeme
-- Agir sans deleguer a un agent worker
+- Exécuter des commandes système
+- Agir sans déléguer à un agent worker
 
 ## Interaction avec Maestro : MCP Server
 
@@ -25,7 +25,7 @@ L'orchestrateur interagit avec Maestro via un **serveur MCP interne**. Maestro e
 
 ### Outils MCP disponibles
 
-#### Lecture de l'etat
+#### Lecture de l'état
 
 ```typescript
 // Liste les features et leur statut
@@ -122,16 +122,16 @@ Le fichier de configuration MCP pointe vers le serveur interne de Maestro :
 }
 ```
 
-> Note : le serveur MCP tourne dans le meme process Node.js que Maestro. Le `mcp-server.js` est un pont stdio qui communique avec les services internes.
+> Note : le serveur MCP tourne dans le même process Node.js que Maestro. Le `mcp-server.js` est un pont stdio qui communique avec les services internes.
 
-## Verification du travail
+## Vérification du travail
 
-L'orchestrateur ne verifie pas lui-meme le travail des agents (il n'interagit pas avec le projet). A la place, il **delegue la verification a des agents specialises** :
+L'orchestrateur ne vérifie pas lui-même le travail des agents (il n'interagit pas avec le projet). A la place, il **délègue la vérification à des agents spécialisés** :
 
-- Un agent **QA** qui lance les tests, verifie les regressions, valide le code
-- Un agent **review** qui relit le diff et signale les problemes
+- Un agent **QA** qui lancé les tests, vérifie les régressions, valide le code
+- Un agent **review** qui relit le diff et signale les problèmes
 
-L'orchestrateur peut proposer la creation de ces agents si l'equipe n'en a pas. Le workflow typique devient :
+L'orchestrateur peut proposer la création de ces agents si l'équipe n'en a pas. Le workflow typique devient :
 
 ```
 Orchestrateur → assigne MAE-1 a backend-dev
@@ -141,17 +141,17 @@ Orchestrateur → assigne la verification de MAE-1 a qa-engineer
 Orchestrateur → complete_feature(MAE-1)
 ```
 
-Si le QA echoue, l'orchestrateur peut reassigner la feature au dev avec le retour du QA en contexte.
+Si le QA échoue, l'orchestrateur peut reassigner la feature au dev avec le retour du QA en contexte.
 
 ## Git : commits sur main (MVP)
 
-Les agents commitent directement sur la branche courante (generalement `main`). Pas de branches par feature au MVP.
+Les agents commitent directement sur la branche courante (généralement `main`). Pas de branches par feature au MVP.
 
-L'orchestrateur inclut dans le prompt de chaque agent l'instruction de commiter son travail avec des messages clairs. Si des problemes apparaissent avec cette approche, l'architecture permettra d'evoluer vers des branches par feature (l'agent fait `git checkout -b maestro/MAE-X` au debut de son run).
+L'orchestrateur inclut dans le prompt de chaque agent l'instruction de commiter son travail avec des messages clairs. Si des problèmes apparaissent avec cette approche, l'architecture permettra d'évoluer vers des branches par feature (l'agent fait `git checkout -b maestro/MAE-X` au début de son run).
 
 ## Prompt de l'orchestrateur
 
-Le prompt systeme de l'orchestrateur definit son role et ses capacites :
+Le prompt système de l'orchestrateur définit son role et ses capacités :
 
 ```markdown
 You are the Maestro orchestrator. You coordinate a team of AI agents working
@@ -241,11 +241,11 @@ Heartbeat tick / User wake
 
 ## Serialisation du travail
 
-L'orchestrateur est responsable d'eviter les conflits. Deux strategies :
+L'orchestrateur est responsable d'éviter les conflits. Deux stratégies :
 
-### 1. Sequentiel strict (MVP)
+### 1. Séquentiel strict (MVP)
 
-Un seul agent worker tourne a la fois. L'orchestrateur attend que le run precedent soit termine avant d'en lancer un nouveau.
+Un seul agent worker tourne à la fois. L'orchestrateur attend que le run précédent soit terminé avant d'en lancer un nouveau.
 
 ```
 Orchestrateur reveille
@@ -258,7 +258,7 @@ Orchestrateur reveille
 
 ### 2. Concurrence par zones (futur)
 
-L'orchestrateur pourrait autoriser deux agents en parallele s'ils travaillent sur des parties disjointes du projet. Il analyserait les fichiers impactes par chaque feature avant de decider.
+L'orchestrateur pourrait autoriser deux agents en parallèle s'ils travaillent sur des parties disjointes du projet. Il analyserait les fichiers impactés par chaque feature avant de décider.
 
 ## Configuration
 
@@ -271,11 +271,11 @@ orchestrator:
   timeoutSec: 300                # Timeout de l'orchestrateur
 ```
 
-L'orchestrateur n'a pas de fichier de config dedie dans `.maestro/agents/` : il est interne a Maestro et configure globalement.
+L'orchestrateur n'a pas de fichier de config dédié dans `.maestro/agents/` : il est interne a Maestro et configure globalement.
 
 ## Propositions d'agents
 
-Quand l'orchestrateur identifie un besoin non couvert, il propose un nouvel archetype d'agent :
+Quand l'orchestrateur identifie un besoin non couvert, il propose un nouvel archétype d'agent :
 
 ```typescript
 interface AgentProposal {
@@ -291,7 +291,7 @@ interface AgentProposal {
 }
 ```
 
-Les propositions apparaissent dans l'UI. L'utilisateur peut accepter (cree l'agent) ou rejeter.
+Les propositions apparaissent dans l'UI. L'utilisateur peut accepter (crée l'agent) ou rejeter.
 
 ## Structure technique
 

@@ -4,7 +4,7 @@
 
 ## Vue d'ensemble
 
-Paperclip est une plateforme open-source d'**orchestration pour entreprises autonomes pilotees par IA**. Elle fournit un serveur Node.js et une UI React qui coordonnent plusieurs agents IA vers des objectifs business. Si les agents individuels (Claude, Codex, Cursor...) sont des employes, Paperclip est **l'entreprise elle-meme** : organigrammes, budgets, gouvernance et audit.
+Paperclip est une plateforme open-source d'**orchestration pour entreprises autonomes pilotées par IA**. Elle fournit un serveur Node.js et une UI React qui coordonnent plusieurs agents IA vers des objectifs business. Si les agents individuels (Claude, Codex, Cursor...) sont des employes, Paperclip est **l'entreprise elle-même** : organigrammes, budgets, gouvernance et audit.
 
 **Ce que Paperclip n'est PAS** : un chatbot, un framework d'agent, un workflow builder, un prompt manager, ou un outil mono-agent.
 
@@ -17,7 +17,7 @@ Paperclip est une plateforme open-source d'**orchestration pour entreprises auto
 | Runtime | Node.js 20+ |
 | Package manager | pnpm 9.15+ (monorepo) |
 | Langage | TypeScript |
-| Base de donnees | PostgreSQL (embedded en local, configurable en prod) |
+| Base de données | PostgreSQL (embedded en local, configurable en prod) |
 | ORM | Drizzle ORM |
 | Frontend | React + Vite |
 | Tests | Vitest + Playwright (e2e) |
@@ -91,7 +91,7 @@ paperclip/
 
 ## Architecture des adaptateurs
 
-L'architecture repose sur un **pattern Adapter** qui abstrait chaque provider IA derriere une interface unifiee `ServerAdapterModule` :
+L'architecture repose sur un **pattern Adapter** qui abstrait chaque provider IA derrière une interface unifiée `ServerAdapterModule` :
 
 ```
 interface ServerAdapterModule {
@@ -104,14 +104,14 @@ interface ServerAdapterModule {
 }
 ```
 
-Le **registre** (`server/src/adapters/registry.ts`) mappe chaque type d'adaptateur vers son implementation. Les adaptateurs inconnus tombent sur l'adaptateur `process` generique.
+Le **registre** (`server/src/adapters/registry.ts`) mappe chaque type d'adaptateur vers son implémentation. Les adaptateurs inconnus tombent sur l'adaptateur `process` générique.
 
-### Deux modes d'execution
+### Deux modes d'exécution
 
 | Mode | Dossier | Usage |
 |------|---------|-------|
 | **Process** | `server/src/adapters/process/` | Spawn d'un processus local (Claude CLI, Codex, Cursor...) |
-| **HTTP** | `server/src/adapters/http/` | Appel a un gateway distant (OpenClaw) |
+| **HTTP** | `server/src/adapters/http/` | Appel à un gateway distant (OpenClaw) |
 
 ---
 
@@ -145,22 +145,22 @@ Un agent Claude dans Paperclip est configure avec ces champs :
 
 | Champ | Description |
 |-------|-------------|
-| `command` | Commande a executer (defaut: `"claude"`) |
-| `cwd` | Repertoire de travail |
-| `model` | ID du modele (`claude-opus-4-6`, `claude-sonnet-4-6`, etc.) |
+| `command` | Commande a exécuter (défaut: `"claude"`) |
+| `cwd` | Répertoire de travail |
+| `model` | ID du modèle (`claude-opus-4-6`, `claude-sonnet-4-6`, etc.) |
 | `effort` | Effort de raisonnement (`low`, `medium`, `high`) |
-| `maxTurnsPerRun` | Nombre max de tours par execution |
+| `maxTurnsPerRun` | Nombre max de tours par exécution |
 | `dangerouslySkipPermissions` | Passe `--dangerously-skip-permissions` |
 | `chrome` | Active le flag `--chrome` |
 | `instructionsFilePath` | Fichier markdown d'instructions |
-| `promptTemplate` | Template du prompt d'execution |
-| `extraArgs` | Arguments CLI supplementaires |
+| `promptTemplate` | Template du prompt d'exécution |
+| `extraArgs` | Arguments CLI supplémentaires |
 | `env` | Variables d'environnement |
-| `timeoutSec` | Timeout d'execution |
-| `graceSec` | Delai de grace avant SIGTERM |
-| `workspaceStrategy` | Strategie workspace (ex: `git_worktree`) |
+| `timeoutSec` | Timeout d'exécution |
+| `graceSec` | Délai de grace avant SIGTERM |
+| `workspaceStrategy` | Stratégie workspace (ex: `git_worktree`) |
 
-### 3. Flux d'execution (`execute.ts`)
+### 3. Flux d'exécution (`execute.ts`)
 
 ```
 Heartbeat/UI trigger
@@ -234,46 +234,46 @@ Claude CLI est invoque avec `--output-format stream-json`. Chaque ligne de stdou
 
 - **`system` (subtype `init`)** : Capture le `session_id` et le `model`
 - **`assistant`** : Extrait les blocs `text` du contenu du message
-- **`result`** : Extrait les metriques finales (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `total_cost_usd`) et le `result` textuel
+- **`result`** : Extrait les métriques finales (`input_tokens`, `output_tokens`, `cache_read_input_tokens`, `total_cost_usd`) et le `result` textuel
 
-### 5. Gestion des sessions (resume)
+### 5. Gestion des sessions (résumé)
 
 Paperclip maintient la **continuite des sessions** Claude entre les heartbeats :
 
-1. Le `sessionCodec` serialise/deserialise les parametres de session (`sessionId`, `cwd`, `workspaceId`, `repoUrl`, `repoRef`)
-2. Le heartbeat scheduler utilise `resolveSessionBeforeForWakeup()` pour retrouver la session precedente d'un agent pour une tache donnee
-3. Claude est relance avec `--resume <session-id>` pour reprendre la conversation
-4. En cas d'erreur "unknown session", Paperclip retente sans resume (nouvelle session)
+1. Le `sessionCodec` sérialise/desérialise les paramêtres de session (`sessionId`, `cwd`, `workspaceId`, `repoUrl`, `repoRef`)
+2. Le heartbeat scheduler utilise `resolveSessionBeforeForWakeup()` pour retrouver la session précédente d'un agent pour une tâche donnée
+3. Claude est relancé avec `--resume <session-id>` pour reprendre la conversation
+4. En cas d'erreur "unknown session", Paperclip retente sans résumé (nouvelle session)
 
 ### 6. Gestion des skills
 
-Les **skills** sont des instructions/capacites injectees dans Claude au runtime :
+Les **skills** sont des instructions/capacités injectées dans Claude au runtime :
 
 1. `syncClaudeSkills()` scanne les skills disponibles dans le runtime Paperclip
-2. `buildSkillsDir()` cree un repertoire temporaire `.claude/skills/` avec des symlinks
-3. Le flag `--add-dir <skills-dir>` permet a Claude Code de decouvrir ces skills
-4. Apres execution, le repertoire temporaire est nettoye
+2. `buildSkillsDir()` crée un répertoire temporaire `.claude/skills/` avec des symlinks
+3. Le flag `--add-dir <skills-dir>` permet a Claude Code de découvrir ces skills
+4. Après exécution, le répertoire temporaire est nettoyé
 
 ### 7. Gestion des quotas et authentification (`quota.ts`)
 
-Deux modes d'authentification sont supportes :
+Deux modes d'authentification sont supportés :
 
-| Mode | Detection | Mecanisme |
+| Mode | Détection | Mécanisme |
 |------|-----------|-----------|
-| **API Key** | `ANTHROPIC_API_KEY` present | Auth directe via cle API |
-| **OAuth/Login** | Pas de cle API | `claude login` + session locale |
+| **API Key** | `ANTHROPIC_API_KEY` present | Auth directe via clé API |
+| **OAuth/Login** | Pas de clé API | `claude login` + session locale |
 
-La surveillance des quotas suit une strategie de fallback :
+La surveillance des quotas suit une stratégie de fallback :
 
 1. **OAuth** : Lecture du token dans le config dir Claude → appel `api.anthropic.com/api/oauth/usage`
 2. **CLI fallback** : Injection de la commande `/usage` dans Claude CLI → parsing de la sortie terminal (avec nettoyage des codes ANSI)
 
 ### 8. Affichage CLI (`format-event.ts`)
 
-Pour le mode CLI (`heartbeat-run`), les events JSON de Claude sont formates avec `picocolors` :
+Pour le mode CLI (`heartbeat-run`), les events JSON de Claude sont formatés avec `picocolors` :
 
-- `system/init` → bleu : modele et session ID
-- `assistant/text` → vert : reponses de l'agent
+- `system/init` → bleu : modèle et session ID
+- `assistant/text` → vert : réponses de l'agent
 - `assistant/thinking` → gris : raisonnement
 - `assistant/tool_use` → jaune : appels d'outils
 - `tool_result` → cyan (ou rouge si erreur)
@@ -281,18 +281,18 @@ Pour le mode CLI (`heartbeat-run`), les events JSON de Claude sont formates avec
 
 ---
 
-## Systeme de heartbeat (scheduler autonome)
+## Système de heartbeat (scheduler autonome)
 
-Le heartbeat est le mecanisme qui rend les agents **autonomes** :
+Le heartbeat est le mécanisme qui rend les agents **autonomes** :
 
-1. **Cron/scheduler** declenche un "wakeup" pour un agent
-2. Le serveur verifie le budget, le statut, et la concurrence (`maxConcurrentRuns` : 1-10)
-3. Un "run" est cree en statut `queued` puis passe a `running`
-4. Le workspace est resolu (projet, worktree git, ou home de l'agent)
-5. La session Claude precedente est recherchee pour resume
-6. L'adaptateur `execute()` est appele (spawn du processus)
-7. Les events (stdout, stderr, status) sont loggues en temps reel
-8. Au terme, le run passe en `succeeded`, `failed`, `cancelled`, ou `timed_out`
+1. **Cron/scheduler** déclenche un "wakeup" pour un agent
+2. Le serveur vérifie le budget, le statut, et la concurrence (`maxConcurrentRuns` : 1-10)
+3. Un "run" est crée en statut `queued` puis passé a `running`
+4. Le workspace est résolu (projet, worktree git, ou home de l'agent)
+5. La session Claude précédente est recherchée pour résumé
+6. L'adaptateur `execute()` est appelé (spawn du processus)
+7. Les events (stdout, stderr, status) sont loggués en temps réel
+8. Au terme, le run passé en `succeeded`, `failed`, `cancelled`, ou `timed_out`
 
 Le CLI `heartbeat-run` permet de suivre ce processus en polling (toutes les 200ms) via l'API `/api/heartbeat-runs/{id}/events`.
 
@@ -300,38 +300,38 @@ Le CLI `heartbeat-run` permet de suivre ce processus en polling (toutes les 200m
 
 ## Gestion multi-tenant et organisationnelle
 
-- **Multi-company** : isolation complete des donnees par entreprise
-- **Organigramme** : hierarchie manager/subordonne avec detection de cycles (max 50 niveaux)
-- **Budgets** : suivi mensuel des couts par agent avec pause automatique en cas de depassement
+- **Multi-company** : isolation complété des données par entreprise
+- **Organigramme** : hiérarchie manager/subordonné avec détection de cyclés (max 50 niveaux)
+- **Budgets** : suivi mensuel des coûts par agent avec pause automatique en cas de dépassement
 - **Approbations** : workflow d'approbation avant certaines actions
-- **Audit** : logs d'activite immutables
+- **Audit** : logs d'activité immutables
 
 ---
 
-## Workspaces d'execution
+## Workspaces d'exécution
 
-Paperclip supporte plusieurs strategies de workspace pour isoler les executions :
+Paperclip supporte plusieurs stratégies de workspace pour isoler les exécutions :
 
-- **Repertoire projet** : execution dans le repo du projet
-- **Git worktree** : creation de worktrees git isoles (`workspaceStrategy: { type: "git_worktree" }`)
-- **Fallback home** : repertoire home de l'agent
+- **Répertoire projet** : exécution dans le repo du projet
+- **Git worktree** : création de worktrees git isolés (`workspaceStrategy: { type: "git_worktree" }`)
+- **Fallback home** : répertoire home de l'agent
 
-Des variables d'environnement `PAPERCLIP_WORKSPACE_*` et `PAPERCLIP_RUNTIME_*` sont injectees pour que l'agent puisse acceder au contexte.
+Des variables d'environnement `PAPERCLIP_WORKSPACE_*` et `PAPERCLIP_RUNTIME_*` sont injectées pour que l'agent puisse accéder au contexte.
 
 ---
 
-## Systeme de plugins
+## Système de plugins
 
-Architecture complete avec :
-- **SDK** (`packages/plugins/sdk/`) pour developper des plugins
-- **Scaffolding** (`create-paperclip-plugin`) pour demarrer rapidement
+Architecture complété avec :
+- **SDK** (`packages/plugins/sdk/`) pour développer des plugins
+- **Scaffolding** (`create-paperclip-plugin`) pour démarrer rapidement
 - **Runtime sandbox** pour l'isolation
 - **Event bus** pour la communication inter-plugins
-- **Job coordinator** pour les taches asynchrones
+- **Job coordinator** pour les tâches asynchrones
 
 ---
 
-## Resume : Comment Paperclip utilise Claude CLI
+## Résumé : Comment Paperclip utilise Claude CLI
 
 ```
 ┌────────────┐     ┌──────────────┐     ┌─────────────────┐
@@ -370,4 +370,4 @@ Architecture complete avec :
                                     └─────────────────────────────┘
 ```
 
-En resume, Paperclip interagit avec Claude Code **exclusivement via le CLI** en le spawnant comme processus fils. Il utilise le format `stream-json` pour parser la sortie en temps reel, maintient la continuite des sessions via `--resume`, injecte des skills via `--add-dir`, et surveille les quotas soit par OAuth soit par scraping de la commande `/usage`.
+En résumé, Paperclip interagit avec Claude Code **exclusivement via le CLI** en le spawnant comme processus fils. Il utilise le format `stream-json` pour parser la sortie en temps réel, maintient la continuite des sessions via `--resume`, injecté des skills via `--add-dir`, et surveille les quotas soit par OAuth soit par scraping de la commande `/usage`.

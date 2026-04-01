@@ -1,17 +1,17 @@
 # Module UI
 
-## Responsabilite
+## Responsabilité
 
-Interface web principale de Maestro. Dashboard temps reel pour gerer les features, observer les agents, et intervenir sur leur travail.
+Interface web principale de Maestro. Dashboard temps réel pour gérer les features, observer les agents, et intervenir sur leur travail.
 
 ## Design system
 
 ### Principes visuels
 
-- **Minimaliste** : peu d'elements decoratifs, focus sur le contenu
+- **Minimaliste** : peu d'elements décoratifs, focus sur le contenu
 - **Accents de couleur** : une couleur primaire (violet/indigo) pour les actions et statuts importants, le reste en niveaux de gris
-- **Typographie** : Inter ou Geist, sans-serif, tailles reduites
-- **Espacement** : genereux, aere, inspire de Linear
+- **Typographie** : Inter ou Geist, sans-serif, tailles réduites
+- **Espacement** : génèreux, aéré, inspiré de Linear
 - **Pas de dark mode** pour l'instant
 - **Pas de raccourcis clavier** pour l'instant
 
@@ -19,13 +19,13 @@ Interface web principale de Maestro. Dashboard temps reel pour gerer les feature
 
 | Usage | Couleur |
 |-------|---------|
-| Fond principal | `#FAFAFA` (gris tres clair) |
+| Fond principal | `#FAFAFA` (gris très clair) |
 | Fond carte | `#FFFFFF` |
 | Texte principal | `#1A1A1A` |
 | Texte secondaire | `#6B7280` |
 | Bordures | `#E5E7EB` |
 | Accent primaire | `#6366F1` (indigo) |
-| Succes | `#10B981` |
+| Succès | `#10B981` |
 | Erreur | `#EF4444` |
 | Warning | `#F59E0B` |
 | En cours | `#3B82F6` |
@@ -35,10 +35,10 @@ Interface web principale de Maestro. Dashboard temps reel pour gerer les feature
 - `Card` : conteneurs principaux
 - `Button` : actions
 - `Badge` : statuts (idle, running, succeeded, failed)
-- `Dialog` : modales de creation/edition
+- `Dialog` : modales de création/édition
 - `Tabs` : navigation secondaire
 - `ScrollArea` : zones scrollables (logs, activity)
-- `Avatar` : identite visuelle des agents
+- `Avatar` : identité visuelle des agents
 - `Tooltip` : informations contextuelles
 - `DropdownMenu` : actions contextuelles
 - `Input`, `Textarea`, `Select` : formulaires
@@ -104,7 +104,7 @@ Vue d'ensemble du projet.
 
 ### Page Features (`/features`)
 
-Liste des features a la maniere de Linear : liste compacte, statuts colores, drag-and-drop optionnel.
+Liste des features à la manière de Linear : liste compacte, statuts colorés, drag-and-drop optionnel.
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -191,8 +191,8 @@ C'est la page la plus critique : le flux en direct de ce que fait l'agent.
 └────────────────────────────────────────────────────────────┘
 ```
 
-> Note : le message n'est pas injecte pendant le run. Il est stocke et transmis
-> a l'orchestrateur au prochain reveil, qui l'integre dans le prompt du run suivant.
+> Note : le message n'est pas injecté pendant le run. Il est stocké et transmis
+> à l'orchestrateur au prochain réveil, qui l'intègre dans le prompt du run suivant.
 
 ### Page Agents (`/agents`)
 
@@ -216,7 +216,7 @@ C'est la page la plus critique : le flux en direct de ce que fait l'agent.
 
 ### Page Agent proposals (dans `/agents` ou notification)
 
-Quand l'orchestrateur propose un nouvel archetype d'agent, une notification apparait dans l'UI :
+Quand l'orchestrateur propose un nouvel archétype d'agent, une notification apparaît dans l'UI :
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -322,9 +322,9 @@ hooks/
 └── use-run-events.ts           # Stream d'events d'un run
 ```
 
-## Gestion du temps reel
+## Gestion du temps réel
 
-Le hook `useWebSocket` maintient une connexion persistante et dispatch les events vers les composants concernes :
+Le hook `useWebSocket` maintient une connexion persistante et dispatch les events vers les composants concernés :
 
 ```typescript
 // Simplifie
@@ -343,7 +343,7 @@ function useWebSocket() {
 }
 ```
 
-Les composants s'abonnent aux events qui les concernent :
+Les composants s'abonnent aux events qui les concernént :
 
 ```typescript
 // Dans run-live-view.tsx

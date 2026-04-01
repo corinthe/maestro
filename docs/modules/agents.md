@@ -1,16 +1,16 @@
 # Module Agents
 
-## Responsabilite
+## Responsabilité
 
-Gestion du cycle de vie des agents worker Claude Code : configuration, spawn des processus, suivi des sessions, et controle (stop/restart).
+Gestion du cycle de vie des agents worker Claude Code : configuration, spawn des processus, suivi des sessions, et contrôle (stop/restart).
 
-Les agents sont des **executants**. Ils ne decident pas quoi faire — c'est l'orchestrateur qui leur assigne du travail avec un prompt et du contexte.
+Les agents sont des **exécutants**. Ils ne décident pas quoi faire — c'est l'orchestrateur qui leur assigné du travail avec un prompt et du contexte.
 
 ## Concept
 
-Un **agent** est une identite persistante associee a une configuration Claude Code. L'orchestrateur lui assigne des taches, et Maestro spawne Claude CLI pour les executer. Les agents travaillent directement sur le repo (pas de worktree), un a la fois, serialises par l'orchestrateur.
+Un **agent** est une identité persistante associée à une configuration Claude Code. L'orchestrateur lui assigné des tâches, et Maestro spawné Claude CLI pour les exécuter. Les agents travaillent directement sur le repo (pas de worktree), un à la fois, sérialises par l'orchestrateur.
 
-Un agent n'est PAS un skill. Un skill est un fichier d'instructions markdown. Un agent est une entite qui utilise des skills pour accomplir du travail.
+Un agent n'est PAS un skill. Un skill est un fichier d'instructions markdown. Un agent est une entité qui utilise des skills pour accomplir du travail.
 
 ## Configuration d'un agent
 
@@ -116,7 +116,7 @@ function buildClaudeArgs(agent: AgentConfig, task: AssignedTask): string[] {
 }
 ```
 
-### Execution
+### Exécution
 
 ```typescript
 async function executeRun(agent: AgentConfig, task: AssignedTask): Promise<RunResult> {
@@ -156,40 +156,40 @@ async function executeRun(agent: AgentConfig, task: AssignedTask): Promise<RunRe
 
 ## Pas de worktrees (MVP)
 
-Les agents travaillent directement sur le repo. L'orchestrateur garantit qu'un seul agent travaille a la fois (serialisation sequentielle). Avantages :
+Les agents travaillent directement sur le repo. L'orchestrateur garantit qu'un seul agent travaille à la fois (sérialisation séquentielle). Avantages :
 
-- **Simplicite** : pas de creation/merge/nettoyage de worktrees
-- **Pas de conflits** : un seul agent modifie les fichiers a la fois
-- **Coherence** : chaque agent voit le travail des precedents
+- **Simplicité** : pas de création/merge/nettoyage de worktrees
+- **Pas de conflits** : un seul agent modifié les fichiers à la fois
+- **Cohérence** : chaque agent voit le travail des précédents
 
-L'orchestrateur peut lancer un agent sur une branche dediee si necessaire (l'agent fait lui-meme le `git checkout -b`).
+L'orchestrateur peut lancer un agent sur une branche dédiée si nécessaire (l'agent fait lui-même le `git checkout -b`).
 
 ## Messages utilisateur entre deux runs
 
 L'utilisateur ne peut pas interagir avec un agent pendant qu'il tourne. Mais il peut laisser un message entre deux runs :
 
-1. L'utilisateur ecrit un message via l'UI
-2. Le message est stocke en DB (`pending_messages`)
-3. Au prochain reveil, l'orchestrateur lit les messages en attente (`get_pending_messages`)
-4. L'orchestrateur integre le message dans le prompt du prochain run de l'agent concerne
+1. L'utilisateur écrit un message via l'UI
+2. Le message est stocké en DB (`pending_messages`)
+3. Au prochain réveil, l'orchestrateur lit les messages en attente (`get_pending_messages`)
+4. L'orchestrateur intègre le message dans le prompt du prochain run de l'agent concerné
 
 ### Stopper un agent
 
 1. Envoie SIGTERM au processus Claude CLI
 2. Attend la grace period (`graceSec`)
-3. SIGKILL si le processus ne repond pas
+3. SIGKILL si le processus ne répond pas
 4. Marque le run comme `stopped`
-5. L'orchestrateur est notifie au prochain tick
+5. L'orchestrateur est notifié au prochain tick
 
-### Redemarrer un agent
+### Redémarrer un agent
 
-1. Reprend la derniere session si possible (`--resume`)
-2. Sinon, demarre une nouvelle session avec le contexte de la feature
-3. Declenche par l'orchestrateur ou par un wakeup manuel
+1. Reprend la dernière session si possible (`--resume`)
+2. Sinon, démarre une nouvelle session avec le contexte de la feature
+3. Déclenche par l'orchestrateur ou par un wakeup manuel
 
 ## Gestion des sessions
 
-Les sessions Claude sont persistees pour permettre la reprise :
+Les sessions Claude sont persistées pour permettre la reprise :
 
 ```typescript
 interface AgentSession {
@@ -200,9 +200,9 @@ interface AgentSession {
 }
 ```
 
-Quand l'orchestrateur assigne une tache pour laquelle une session existe, Maestro utilise `--resume <sessionId>` pour maintenir la continuite de la conversation.
+Quand l'orchestrateur assigné une tâche pour laquelle une session existe, Maestro utilise `--resume <sessionId>` pour maintenir la continuite de la conversation.
 
-Si la session n'existe plus (erreur "unknown session"), Maestro relance sans resume.
+Si la session n'existe plus (erreur "unknown session"), Maestro relancé sans résumé.
 
 ## Structure technique
 
