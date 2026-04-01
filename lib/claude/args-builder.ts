@@ -13,6 +13,8 @@ export type RunTask = {
   prompt: string;
   sessionId?: string;
   skillsDir?: string;
+  mcpConfigPath?: string;
+  systemPrompt?: string;
 };
 
 export function buildClaudeArgs(config: AgentConfig, task: RunTask): string[] {
@@ -39,6 +41,14 @@ export function buildClaudeArgs(config: AgentConfig, task: RunTask): string[] {
 
   if (task.skillsDir) {
     args.push("--add-dir", task.skillsDir);
+  }
+
+  if (task.mcpConfigPath) {
+    args.push("--mcp-config", task.mcpConfigPath);
+  }
+
+  if (task.systemPrompt) {
+    args.push("--system-prompt", task.systemPrompt);
   }
 
   if (task.sessionId) {

@@ -51,6 +51,12 @@ lib/
     agent-runner.ts         # Orchestration d'un run complet: DB + spawn + WS broadcast + timeout
   ws/
     server.ts               # WebSocket server (port 4201), broadcast()
+  mcp/
+    server.ts               # Serveur MCP interne (stdio) — expose les outils Maestro a Claude
+  orchestrator/
+    index.ts                # Orchestrateur: wake, stop, status, config heartbeat
+    heartbeat.ts            # Scheduler heartbeat (setInterval configurable)
+    prompt.ts               # System prompt pour l'orchestrateur Claude
   services/
     feature-service.ts      # CRUD features (list, get, create, update, delete)
     agent-service.ts        # CRUD agents + setStatus
@@ -103,6 +109,6 @@ src/
 
 - **Phase 1 (DONE)**: CLI init/dev, CRUD features/agents, UI dashboard/features/agents, services, API routes
 - **Phase 2 (DONE)**: Spawn Claude CLI (adapter, parser, agent-runner), WebSocket server (port 4201), Live view (/runs/:id), Stop/Restart
-- **Phase 3 (A FAIRE)**: Serveur MCP interne, orchestrateur Claude, heartbeat scheduler, wakeup manuel
+- **Phase 3 (DONE)**: Serveur MCP interne, orchestrateur Claude, heartbeat scheduler, wakeup manuel
 - **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
 - **Phase 5 (A FAIRE)**: Skills, dashboard avance, config, historique, stats, CLI avance

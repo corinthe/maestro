@@ -1,11 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, ne } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { agents } from "@/lib/db/schema";
 
 export function listAgents() {
   const db = getDb();
-  return db.select().from(agents).orderBy(desc(agents.createdAt)).all();
+  return db.select().from(agents).where(ne(agents.name, "__orchestrator__")).orderBy(desc(agents.createdAt)).all();
 }
 
 export function getAgent(id: string) {

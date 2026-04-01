@@ -19,6 +19,9 @@ export type RunRequest = {
   env?: Record<string, string>;
   timeoutSec?: number;
   graceSec?: number;
+  mcpConfigPath?: string;
+  systemPrompt?: string;
+  runType?: string;
 };
 
 // Track active processes so we can stop them
@@ -37,7 +40,7 @@ export async function executeRun(req: RunRequest): Promise<string> {
   const run = runService.createRun({
     agentId: req.agentId,
     featureId: req.featureId,
-    runType: "agent",
+    runType: req.runType ?? "agent",
     prompt: req.prompt,
     model: req.config.model,
   });
@@ -66,6 +69,8 @@ export async function executeRun(req: RunRequest): Promise<string> {
     {
       prompt: req.prompt,
       sessionId: req.sessionId,
+      mcpConfigPath: req.mcpConfigPath,
+      systemPrompt: req.systemPrompt,
     },
     req.cwd,
     req.env,
