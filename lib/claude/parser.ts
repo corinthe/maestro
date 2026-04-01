@@ -8,6 +8,10 @@
  * - { type: "result", subtype: "success"|"error_max_turns", result, session_id, usage, total_cost_usd }
  */
 
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("parser");
+
 export type StreamEvent = {
   type: "system" | "assistant" | "user" | "result";
   subtype?: string;
@@ -34,6 +38,7 @@ export function parseStreamLine(line: string): StreamEvent | null {
   try {
     json = JSON.parse(trimmed);
   } catch {
+    log.warn("invalid JSON in stream", { line: trimmed.slice(0, 200) });
     return null;
   }
 

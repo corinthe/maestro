@@ -6,6 +6,9 @@
  * The client connects to this port for real-time events.
  */
 import { WebSocketServer, WebSocket } from "ws";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("ws");
 
 let wss: WebSocketServer | null = null;
 
@@ -16,11 +19,11 @@ export function startWsServer(port: number = 4201): WebSocketServer {
 
   wss.on("connection", (ws) => {
     ws.on("error", (err) => {
-      console.error("[ws] client error:", err.message);
+      log.error("client error", { error: err.message });
     });
   });
 
-  console.log(`[ws] WebSocket server listening on ws://localhost:${port}/ws`);
+  log.info("WebSocket server listening", { port, path: "/ws" });
   return wss;
 }
 

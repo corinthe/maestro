@@ -14,6 +14,9 @@ import { executeRun, stopRun, getActiveRun } from "@/lib/claude/agent-runner";
 import { broadcast } from "@/lib/ws/server";
 import { ORCHESTRATOR_AGENT_NAME } from "@/lib/types";
 import { buildOrchestratorPrompt } from "./prompt";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("orchestrator");
 
 export type OrchestratorStatus = "idle" | "running" | "sleeping";
 
@@ -26,6 +29,9 @@ type OrchestratorState = {
 
 // Cached orchestrator agent ID (populated on first call)
 let cachedOrchestratorAgentId: string | null = null;
+
+// Mutex to prevent concurrent wakeups
+let wakeInProgress = false;
 
 // --- Config helpers (stored in `config` table) ---
 
@@ -98,6 +104,7 @@ export function setHeartbeatConfig(opts: {
 /**
  * Wake the orchestrator — starts a new orchestrator run.
  * If already running, returns the existing run ID.
+ * Uses an in-memory mutex to prevent concurrent wakeups.
  */
 export async function wakeOrchestrator(
   reason: string = "heartbeat"
@@ -105,41 +112,61 @@ export async function wakeOrchestrator(
   const currentRunId = getConfigValue("orchestrator.currentRunId");
 
   if (currentRunId && getActiveRun(currentRunId)) {
+    log.debug("orchestrator already running", { runId: currentRunId, reason });
     return { runId: currentRunId, alreadyRunning: true };
   }
 
-  const projectRoot = process.cwd();
-  const mcpConfigPath = ensureMcpConfig(projectRoot);
-  const systemPrompt = buildOrchestratorPrompt(projectRoot);
-  const prompt = buildWakePrompt(reason);
-  const existingSessionId = getConfigValue("orchestrator.sessionId");
+  // Mutex: prevent concurrent wakeup attempts
+  if (wakeInProgress) {
+    log.warn("wakeup blocked by mutex", { reason });
+    // Return a sentinel — caller should treat this like alreadyRunning
+    const fallbackId = currentRunId ?? "pending";
+    return { runId: fallbackId, alreadyRunning: true };
+  }
 
-  const runId = await executeRun({
-    agentId: getOrCreateOrchestratorAgentId(),
-    prompt,
-    runType: "orchestrator",
-    config: {
-      model: getConfigValue("orchestrator.model") ?? "sonnet",
-      maxTurnsPerRun: 30,
-      skipPermissions: true,
-    },
-    cwd: projectRoot,
-    sessionId: existingSessionId ?? undefined,
-    timeoutSec: 300,
-    mcpConfigPath,
-    systemPrompt,
-  });
+  wakeInProgress = true;
+  try {
+    log.info("waking orchestrator", { reason });
 
-  setConfigValue("orchestrator.currentRunId", runId);
-  setConfigValue("orchestrator.lastWakeAt", new Date().toISOString());
-  broadcast({
-    type: "orchestrator.status",
-    status: "running",
-    runId,
-    reason,
-  });
+    const projectRoot = process.cwd();
+    const mcpConfigPath = ensureMcpConfig(projectRoot);
+    const systemPrompt = buildOrchestratorPrompt(projectRoot);
+    const prompt = buildWakePrompt(reason);
+    const existingSessionId = getConfigValue("orchestrator.sessionId");
 
-  return { runId, alreadyRunning: false };
+    const runId = await executeRun({
+      agentId: getOrCreateOrchestratorAgentId(),
+      prompt,
+      runType: "orchestrator",
+      config: {
+        model: getConfigValue("orchestrator.model") ?? "sonnet",
+        maxTurnsPerRun: 30,
+        skipPermissions: true,
+      },
+      cwd: projectRoot,
+      sessionId: existingSessionId ?? undefined,
+      timeoutSec: 300,
+      mcpConfigPath,
+      systemPrompt,
+    });
+
+    setConfigValue("orchestrator.currentRunId", runId);
+    setConfigValue("orchestrator.lastWakeAt", new Date().toISOString());
+    broadcast({
+      type: "orchestrator.status",
+      status: "running",
+      runId,
+      reason,
+    });
+
+    log.info("orchestrator started", { runId, reason });
+    return { runId, alreadyRunning: false };
+  } catch (err) {
+    log.error("failed to wake orchestrator", { reason, error: String(err) });
+    throw err;
+  } finally {
+    wakeInProgress = false;
+  }
 }
 
 /**
@@ -150,6 +177,7 @@ export function stopOrchestrator(): boolean {
   if (!runId) return false;
   const stopped = stopRun(runId);
   if (stopped) {
+    log.info("orchestrator stopped", { runId });
     broadcast({ type: "orchestrator.status", status: "idle" });
   }
   return stopped;

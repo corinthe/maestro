@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { handler, ok, created, badRequest } from "@/lib/api";
 import { listAgents, createAgent } from "@/lib/services/agent-service";
+import { validateAgentCreate } from "@/lib/validation";
 
 export const GET = handler(() => {
   return ok(listAgents());
@@ -8,9 +9,8 @@ export const GET = handler(() => {
 
 export const POST = handler(async (request: NextRequest) => {
   const body = await request.json();
-  if (!body.name || typeof body.name !== "string") {
-    return badRequest("name is required");
-  }
+  const v = validateAgentCreate(body);
+  if (!v.ok) return badRequest(v.message);
   return created(
     createAgent({
       name: body.name,

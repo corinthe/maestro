@@ -8,6 +8,7 @@ Orchestrateur de projet IA, local-first, qui pilote une equipe d'agents Claude C
 pnpm dev              # Lance le serveur Next.js sur :4200
 pnpm build            # Build Next.js + compile CLI (tsc)
 pnpm lint             # ESLint
+pnpm test             # Vitest (tests unitaires + integration)
 pnpm cli              # Lance le CLI en dev (tsx src/cli/index.ts)
 pnpm db:generate      # Genere les migrations Drizzle
 pnpm db:migrate       # Applique les migrations
@@ -41,6 +42,11 @@ components/
 lib/
   api.ts                    # Helpers API: ok(), created(), notFound(), handler(), resourceHandler(), pickFields()
   types.ts                  # Types partages (Feature, Agent, Run, Message) + constantes statuts
+  logger.ts                 # Logger structure JSON (createLogger, niveaux debug/info/warn/error)
+  validation.ts             # Validation des inputs API (agents, features, runs, messages, config)
+  rate-limit.ts             # Rate limiting API + limite spawns concurrents
+  startup-recovery.ts       # Recovery runs orphelins et agents stuck au demarrage
+  purge.ts                  # Purge scheduler run_events > 24h
   db/
     index.ts                # Init connexion SQLite, getDb(), createTables()
     schema.ts               # Schema Drizzle (10 tables)
@@ -110,20 +116,14 @@ src/
 - **Phase 1 (DONE)**: CLI init/dev, CRUD features/agents, UI dashboard/features/agents, services, API routes
 - **Phase 2 (DONE)**: Spawn Claude CLI (adapter, parser, agent-runner), WebSocket server (port 4201), Live view (/runs/:id), Stop/Restart
 - **Phase 3 (DONE)**: Serveur MCP interne, orchestrateur Claude, heartbeat scheduler, wakeup manuel
-- **Phase 3.5 (A FAIRE)**: Stabilisation avant nouvelles features
-  - Recovery au demarrage: detecter les runs orphelins "running" et les marquer `failed`
-  - Mutex orchestrateur: empecher les wakeups concurrents (verrou en DB ou in-memory)
-  - Validation des inputs: schema validation sur prompts, configs agents, noms/titres
-  - Logging structure: logger centralise (`lib/logger.ts`, JSON vers stdout, niveaux debug/info/warn/error, LOG_LEVEL configurable)
-    - agent-runner: run start/end, agentId, featureId, duree, statut final, exit code, erreur
-    - adapter: spawn process (PID, commande, args), stderr, timeout, kill signal
-    - orchestrator: wake trigger (heartbeat/manual), decision, assignment agent→feature, stop, erreur
-    - heartbeat: tick, skip (deja running), wake result
-    - parser: erreurs de parsing JSON invalide, ligne brute en contexte
-    - API routes: erreurs 4xx/5xx avec route, methode, body (sans donnees sensibles)
-    - services: erreurs DB (query, params), echecs CRUD
-  - Tests critiques: parser Claude, agent-runner, orchestrateur, services CRUD
-  - Purge run_events: implementer la purge apres 24h (documentee mais absente)
-  - Rate limiting: limiter les appels API et les spawns d'agents concurrents
+- **Phase 3.5 (DONE)**: Stabilisation avant nouvelles features
+  - Recovery au demarrage: detecte les runs orphelins "running"/"queued" et les marque `failed`, reset agents stuck (`lib/startup-recovery.ts`)
+  - Mutex orchestrateur: verrou in-memory dans `wakeOrchestrator()` empechant les wakeups concurrents
+  - Validation des inputs: `lib/validation.ts` — validation sur tous les endpoints (noms, titres, prompts, configs, statuts, limites de longueur)
+  - Logging structure: `lib/logger.ts` — JSON vers stdout/stderr, niveaux debug/info/warn/error, LOG_LEVEL configurable
+    - Integre dans: agent-runner, adapter, orchestrator, heartbeat, parser, ws/server, API routes
+  - Tests critiques: `vitest` — parser, validation, services CRUD, recovery, rate limiting (50 tests)
+  - Purge run_events: `lib/purge.ts` — scheduler toutes les heures, supprime les events > 24h
+  - Rate limiting: `lib/rate-limit.ts` — limite de spawns concurrents (MAX_CONCURRENT_AGENTS, defaut 5)
 - **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
 - **Phase 5 (A FAIRE)**: Skills, dashboard avance (stats reelles, activite recente, features actives), config, historique, stats, CLI avance

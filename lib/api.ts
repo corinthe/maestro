@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("api");
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -36,7 +39,8 @@ export function handler(fn: (request: NextRequest) => Promise<NextResponse> | Ne
   return async (request: NextRequest) => {
     try {
       return await fn(request);
-    } catch {
+    } catch (err) {
+      log.error("unhandled error", { method: request.method, url: request.nextUrl.pathname, error: String(err) });
       return serverError();
     }
   };
@@ -48,7 +52,8 @@ export function resourceHandler(fn: (request: NextRequest, id: string) => Promis
     try {
       const { id } = await ctx.params;
       return await fn(request, id);
-    } catch {
+    } catch (err) {
+      log.error("unhandled error", { method: request.method, url: request.nextUrl.pathname, error: String(err) });
       return serverError();
     }
   };

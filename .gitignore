@@ -12,6 +12,8 @@ lib/**/*.d.ts
 
 # Database
 .maestro/db.sqlite
+.maestro/db.sqlite-shm
+.maestro/db.sqlite-wal
 
 # TypeScript
 *.tsbuildinfo
