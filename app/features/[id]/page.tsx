@@ -11,20 +11,13 @@ import {
   type Feature,
   type FeatureStatus,
   type Run,
+  type RunStatus,
   type Agent,
   FEATURE_STATUSES,
   FEATURE_STATUS_LABELS,
   FEATURE_STATUS_VARIANT,
+  RUN_STATUS_VARIANT,
 } from "@/lib/types";
-
-const RUN_STATUS_VARIANT: Record<string, "default" | "info" | "success" | "error" | "warning"> = {
-  queued: "default",
-  running: "info",
-  succeeded: "success",
-  failed: "error",
-  stopped: "warning",
-  timed_out: "error",
-};
 
 export default function FeatureDetailPage() {
   const params = useParams<{ id: string }>();
@@ -184,7 +177,7 @@ export default function FeatureDetailPage() {
                 onClick={() => router.push(`/runs/${run.id}`)}
                 className="flex w-full items-center gap-3 rounded-md border border-border px-4 py-2.5 text-left transition-colors hover:bg-gray-50 cursor-pointer"
               >
-                <Badge variant={RUN_STATUS_VARIANT[run.status] ?? "default"}>
+                <Badge variant={RUN_STATUS_VARIANT[run.status as RunStatus] ?? "default"}>
                   {run.status}
                 </Badge>
                 <span className="flex-1 text-xs text-text-secondary">

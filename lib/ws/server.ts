@@ -40,7 +40,3 @@ export function broadcast(data: unknown): void {
     }
   }
 }
-
-export function getWss(): WebSocketServer | null {
-  return wss;
-}

@@ -24,6 +24,7 @@ export function useWebSocket(opts?: UseWebSocketOptions) {
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
     let unmounted = false;
+    let reconnectDelay = 1000;
 
     function connect() {
       const wsPort = process.env.NEXT_PUBLIC_WS_PORT ?? "4201";
@@ -31,14 +32,17 @@ export function useWebSocket(opts?: UseWebSocketOptions) {
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        if (!unmounted) setConnected(true);
+        if (!unmounted) {
+          setConnected(true);
+          reconnectDelay = 1000; // reset on successful connect
+        }
       };
 
       ws.onclose = () => {
         if (!unmounted) {
           setConnected(false);
-          // Reconnect with backoff
-          reconnectTimeout = setTimeout(connect, 2000);
+          reconnectTimeout = setTimeout(connect, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 30_000);
         }
       };
 

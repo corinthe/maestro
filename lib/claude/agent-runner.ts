@@ -44,7 +44,6 @@ export async function executeRun(req: RunRequest): Promise<string> {
 
   const runId = run.id;
   let seq = 0;
-  let capturedSessionId: string | undefined = req.sessionId;
 
   // 2. Mark run as running
   runService.updateRun(runId, {
@@ -76,7 +75,6 @@ export async function executeRun(req: RunRequest): Promise<string> {
 
         // Capture session ID from init event
         if (event.type === "system" && event.subtype === "init" && event.sessionId) {
-          capturedSessionId = event.sessionId;
           runService.updateRun(runId, { sessionId: event.sessionId });
         }
 
@@ -117,6 +115,8 @@ export async function executeRun(req: RunRequest): Promise<string> {
 
       onExit(code: number | null, signal: NodeJS.Signals | null) {
         if (timeoutHandle) clearTimeout(timeoutHandle);
+        const stopTimer = stopTimers.get(runId);
+        if (stopTimer) { clearTimeout(stopTimer); stopTimers.delete(runId); }
         activeRuns.delete(runId);
 
         const now = new Date().toISOString();
@@ -166,15 +166,20 @@ export async function executeRun(req: RunRequest): Promise<string> {
   return runId;
 }
 
+// Pending force-kill timers for graceful shutdown
+const stopTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
 export function stopRun(runId: string): boolean {
   const proc = activeRuns.get(runId);
   if (!proc) return false;
   proc.kill("SIGTERM");
   // Force kill after 30s grace
-  setTimeout(() => {
+  const timer = setTimeout(() => {
+    stopTimers.delete(runId);
     if (activeRuns.has(runId)) {
       proc.kill("SIGKILL");
     }
   }, 30_000);
+  stopTimers.set(runId, timer);
   return true;
 }

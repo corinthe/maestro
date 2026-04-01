@@ -1,45 +1,21 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RunEvent } from "@/components/runs/run-event";
 import { useApi, apiPost } from "@/hooks/use-api";
 import { useWebSocket } from "@/hooks/use-websocket";
-import { type Run, type RunStatus } from "@/lib/types";
-
-type EventData = {
-  type: string;
-  subtype?: string;
-  text?: string;
-  toolName?: string;
-  toolInput?: unknown;
-  toolResult?: string;
-  isError?: boolean;
-  sessionId?: string;
-  model?: string;
-  summary?: string;
-  costUsd?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-};
-
-const RUN_STATUS_VARIANT: Record<string, "default" | "info" | "success" | "error" | "warning"> = {
-  queued: "default",
-  running: "info",
-  succeeded: "success",
-  failed: "error",
-  stopped: "warning",
-  timed_out: "error",
-};
+import { type Run, type RunEventData, type RunStatus, RUN_STATUS_VARIANT } from "@/lib/types";
 
 export default function RunDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const runId = params.id;
   const { data: run, loading, error, refetch } = useApi<Run>(`/api/runs/${runId}`);
-  const [events, setEvents] = useState<EventData[]>([]);
+  const [events, setEvents] = useState<RunEventData[]>([]);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
@@ -68,7 +44,7 @@ export default function RunDetailPage() {
   const onWsEvent = useCallback(
     (wsEvent: { type: string; [key: string]: unknown }) => {
       if (wsEvent.type === "run.event" && wsEvent.runId === runId) {
-        const event = wsEvent.event as EventData;
+        const event = wsEvent.event as RunEventData;
         setEvents((prev) => [...prev, event]);
       }
       if (wsEvent.type === "run.status" && wsEvent.runId === runId) {
@@ -106,7 +82,7 @@ export default function RunDetailPage() {
   async function handleRestart() {
     const res = await apiPost<{ runId: string }>(`/api/runs/${runId}/restart`, {});
     if (res.data?.runId) {
-      window.location.href = `/runs/${res.data.runId}`;
+      router.push(`/runs/${res.data.runId}`);
     }
   }
 
@@ -141,7 +117,7 @@ export default function RunDetailPage() {
           <h1 className="text-lg font-semibold text-text">
             Run
           </h1>
-          <Badge variant={RUN_STATUS_VARIANT[currentStatus] ?? "default"}>
+          <Badge variant={RUN_STATUS_VARIANT[currentStatus as RunStatus] ?? "default"}>
             {currentStatus}
           </Badge>
           {isRunning && (

@@ -85,6 +85,32 @@ export const AGENT_STATUS_LABELS: Record<AgentStatus, string> = {
 export const RUN_STATUSES = ["queued", "running", "succeeded", "failed", "stopped", "timed_out"] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
+export const RUN_STATUS_VARIANT: Record<RunStatus, "default" | "info" | "success" | "error" | "warning"> = {
+  queued: "default",
+  running: "info",
+  succeeded: "success",
+  failed: "error",
+  stopped: "warning",
+  timed_out: "error",
+};
+
+// Parsed stream event for display in the UI
+export type RunEventData = {
+  type: string;
+  subtype?: string;
+  text?: string;
+  toolName?: string;
+  toolInput?: unknown;
+  toolResult?: string;
+  isError?: boolean;
+  sessionId?: string;
+  model?: string;
+  summary?: string;
+  costUsd?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+};
+
 // API response types
 
 export type ApiResponse<T> = { data: T };

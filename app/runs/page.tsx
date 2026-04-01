@@ -3,16 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { useApi } from "@/hooks/use-api";
-import { type Run } from "@/lib/types";
-
-const RUN_STATUS_VARIANT: Record<string, "default" | "info" | "success" | "error" | "warning"> = {
-  queued: "default",
-  running: "info",
-  succeeded: "success",
-  failed: "error",
-  stopped: "warning",
-  timed_out: "error",
-};
+import { type Run, type RunStatus, RUN_STATUS_VARIANT } from "@/lib/types";
 
 export default function RunsPage() {
   const router = useRouter();
@@ -40,7 +31,7 @@ export default function RunsPage() {
               onClick={() => router.push(`/runs/${run.id}`)}
               className="flex w-full items-center gap-3 rounded-md border border-border bg-card px-4 py-3 text-left transition-colors hover:bg-gray-50 cursor-pointer"
             >
-              <Badge variant={RUN_STATUS_VARIANT[run.status] ?? "default"}>
+              <Badge variant={RUN_STATUS_VARIANT[run.status as RunStatus] ?? "default"}>
                 {run.status}
               </Badge>
               <span className="text-xs font-medium text-text-secondary">

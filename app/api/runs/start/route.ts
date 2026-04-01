@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { handler, ok, badRequest, notFound } from "@/lib/api";
 import { getAgent } from "@/lib/services/agent-service";
 import { executeRun } from "@/lib/claude/agent-runner";
-import path from "path";
 
 export const POST = handler(async (request: NextRequest) => {
   const body = await request.json();

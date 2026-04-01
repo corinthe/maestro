@@ -1,20 +1,6 @@
 "use client";
 
-type RunEventData = {
-  type: string;
-  subtype?: string;
-  text?: string;
-  toolName?: string;
-  toolInput?: unknown;
-  toolResult?: string;
-  isError?: boolean;
-  sessionId?: string;
-  model?: string;
-  summary?: string;
-  costUsd?: number;
-  inputTokens?: number;
-  outputTokens?: number;
-};
+import { type RunEventData } from "@/lib/types";
 
 export function RunEvent({ event }: { event: RunEventData }) {
   switch (event.type) {
