@@ -1,3 +1,6 @@
+// Internal agent name for the orchestrator (used to filter from UI listings)
+export const ORCHESTRATOR_AGENT_NAME = "__orchestrator__";
+
 // Shared types matching Drizzle schema output (camelCase)
 
 export type Feature = {

@@ -6,12 +6,13 @@
  */
 import path from "node:path";
 import fs from "node:fs";
-import { v4 as uuidv4 } from "uuid";
 import { getDb } from "@/lib/db";
 import { config, agents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { createAgent } from "@/lib/services/agent-service";
 import { executeRun, stopRun, getActiveRun } from "@/lib/claude/agent-runner";
 import { broadcast } from "@/lib/ws/server";
+import { ORCHESTRATOR_AGENT_NAME } from "@/lib/types";
 import { buildOrchestratorPrompt } from "./prompt";
 
 export type OrchestratorStatus = "idle" | "running" | "sleeping";
@@ -23,6 +24,9 @@ type OrchestratorState = {
   currentRunId: string | null;
 };
 
+// Cached orchestrator agent ID (populated on first call)
+let cachedOrchestratorAgentId: string | null = null;
+
 // --- Config helpers (stored in `config` table) ---
 
 function getConfigValue(key: string): string | null {
@@ -33,20 +37,20 @@ function getConfigValue(key: string): string | null {
 
 function setConfigValue(key: string, value: string): void {
   const db = getDb();
-  const existing = db.select().from(config).where(eq(config.key, key)).get();
-  if (existing) {
-    db.update(config).set({ value }).where(eq(config.key, key)).run();
-  } else {
-    db.insert(config).values({ key, value }).run();
-  }
+  // Atomic upsert — avoids TOCTOU race from SELECT + INSERT/UPDATE
+  db.insert(config)
+    .values({ key, value })
+    .onConflictDoUpdate({ target: config.key, set: { value } })
+    .run();
 }
 
 // --- Public API ---
 
 export function getOrchestratorStatus(): OrchestratorState {
   const runId = getConfigValue("orchestrator.currentRunId");
+  const active = runId ? getActiveRun(runId) : undefined;
   let status: OrchestratorStatus = "idle";
-  if (runId && getActiveRun(runId)) {
+  if (active) {
     status = "running";
   } else if (getConfigValue("orchestrator.heartbeatEnabled") === "true") {
     status = "sleeping";
@@ -56,7 +60,7 @@ export function getOrchestratorStatus(): OrchestratorState {
     status,
     lastWakeAt: getConfigValue("orchestrator.lastWakeAt"),
     sessionId: getConfigValue("orchestrator.sessionId"),
-    currentRunId: runId && getActiveRun(runId) ? runId : null,
+    currentRunId: active ? runId : null,
   };
 }
 
@@ -100,7 +104,6 @@ export async function wakeOrchestrator(
 ): Promise<{ runId: string; alreadyRunning: boolean }> {
   const currentRunId = getConfigValue("orchestrator.currentRunId");
 
-  // Already running?
   if (currentRunId && getActiveRun(currentRunId)) {
     return { runId: currentRunId, alreadyRunning: true };
   }
@@ -127,7 +130,6 @@ export async function wakeOrchestrator(
     systemPrompt,
   });
 
-  // Track state
   setConfigValue("orchestrator.currentRunId", runId);
   setConfigValue("orchestrator.lastWakeAt", new Date().toISOString());
   broadcast({
@@ -155,11 +157,12 @@ export function stopOrchestrator(): boolean {
 
 // --- Internal helpers ---
 
+/** Last written MCP config content (avoids redundant disk writes). */
+let lastMcpConfigContent: string | null = null;
+
 function ensureMcpConfig(projectRoot: string): string {
   const maestroDir = path.join(projectRoot, ".maestro");
-  if (!fs.existsSync(maestroDir)) {
-    fs.mkdirSync(maestroDir, { recursive: true });
-  }
+  fs.mkdirSync(maestroDir, { recursive: true });
 
   const configPath = path.join(maestroDir, "mcp-config.json");
   const mcpServerPath = path.join(projectRoot, "lib", "mcp", "server.ts");
@@ -170,13 +173,18 @@ function ensureMcpConfig(projectRoot: string): string {
         command: "npx",
         args: ["tsx", mcpServerPath],
         env: {
-          MAESTRO_PORT: process.env.PORT ?? "4200",
+          MAESTRO_PORT: process.env.MAESTRO_PORT ?? "4200",
         },
       },
     },
   };
 
-  fs.writeFileSync(configPath, JSON.stringify(mcpConfig, null, 2));
+  const content = JSON.stringify(mcpConfig, null, 2);
+  if (content !== lastMcpConfigContent) {
+    fs.writeFileSync(configPath, content);
+    lastMcpConfigContent = content;
+  }
+
   return configPath;
 }
 
@@ -187,27 +195,26 @@ Check pending messages, review active runs, update feature statuses, and assign 
 }
 
 function getOrCreateOrchestratorAgentId(): string {
+  if (cachedOrchestratorAgentId) return cachedOrchestratorAgentId;
+
   const db = getDb();
   const existing = db
     .select()
     .from(agents)
-    .where(eq(agents.name, "__orchestrator__"))
+    .where(eq(agents.name, ORCHESTRATOR_AGENT_NAME))
     .get();
 
-  if (existing) return existing.id;
+  if (existing) {
+    cachedOrchestratorAgentId = existing.id;
+    return existing.id;
+  }
 
-  const now = new Date().toISOString();
-  const id = uuidv4();
-  db.insert(agents)
-    .values({
-      id,
-      name: "__orchestrator__",
-      description: "Internal orchestrator agent",
-      config: JSON.stringify({ model: "sonnet", maxTurnsPerRun: 30 }),
-      status: "idle",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
-  return id;
+  const created = createAgent({
+    name: ORCHESTRATOR_AGENT_NAME,
+    description: "Internal orchestrator agent",
+    config: { model: "sonnet", maxTurnsPerRun: 30 },
+  });
+
+  cachedOrchestratorAgentId = created.id;
+  return created.id;
 }
