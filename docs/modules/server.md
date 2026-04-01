@@ -2,7 +2,7 @@
 
 ## Responsabilite
 
-Serveur Next.js qui expose l'API REST, gere les connexions WebSocket temps reel, et orchestre les services metier (agents, features, runs, skills).
+Serveur Next.js qui expose l'API REST, le serveur MCP interne (pour l'orchestrateur), gere les connexions WebSocket temps reel, et orchestre les services metier.
 
 ## API Routes
 
@@ -15,7 +15,7 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 | GET | `/api/features` | Liste des features (filtres: status, agent) |
 | POST | `/api/features` | Creer une feature |
 | GET | `/api/features/:id` | Detail d'une feature |
-| PATCH | `/api/features/:id` | Modifier une feature (titre, description, statut, agent assigne) |
+| PATCH | `/api/features/:id` | Modifier une feature (titre, description, statut, priorite) |
 | DELETE | `/api/features/:id` | Supprimer une feature |
 
 ### Agents
@@ -27,8 +27,15 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 | GET | `/api/agents/:id` | Detail d'un agent (config, stats) |
 | PATCH | `/api/agents/:id` | Modifier la configuration d'un agent |
 | DELETE | `/api/agents/:id` | Supprimer un agent |
-| POST | `/api/agents/:id/wake` | Reveiller un agent |
-| POST | `/api/agents/:id/stop` | Arreter un agent |
+| POST | `/api/agents/:id/stop` | Arreter un agent en cours |
+
+### Orchestrator
+
+| Methode | Route | Description |
+|---------|-------|-------------|
+| GET | `/api/orchestrator/status` | Statut de l'orchestrateur (idle, running) |
+| POST | `/api/orchestrator/wake` | Reveiller l'orchestrateur immediatement |
+| GET | `/api/orchestrator/runs` | Historique des runs de l'orchestrateur |
 
 ### Runs (executions)
 
@@ -36,10 +43,24 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 |---------|-------|-------------|
 | GET | `/api/runs` | Liste des runs (filtres: agent, feature, status) |
 | GET | `/api/runs/:id` | Detail d'un run avec events |
-| GET | `/api/runs/:id/events` | Stream des events d'un run (pour polling fallback) |
-| POST | `/api/runs/:id/message` | Envoyer un message a l'agent pendant son execution |
+| GET | `/api/runs/:id/events` | Events d'un run (polling fallback, paginee) |
 | POST | `/api/runs/:id/stop` | Arreter un run |
 | POST | `/api/runs/:id/restart` | Relancer un run |
+
+### Messages
+
+| Methode | Route | Description |
+|---------|-------|-------------|
+| POST | `/api/messages` | Envoyer un message (lu par l'orchestrateur au prochain reveil) |
+| GET | `/api/messages` | Messages en attente |
+
+### Agent proposals
+
+| Methode | Route | Description |
+|---------|-------|-------------|
+| GET | `/api/proposals` | Propositions d'agents de l'orchestrateur |
+| POST | `/api/proposals/:id/accept` | Accepter une proposition (cree l'agent) |
+| POST | `/api/proposals/:id/reject` | Rejeter une proposition |
 
 ### Skills
 
@@ -58,6 +79,35 @@ Toutes les routes sont sous `/api/` via le App Router de Next.js.
 | GET | `/api/config` | Configuration globale |
 | PATCH | `/api/config` | Modifier la configuration |
 
+## MCP Server interne
+
+Le serveur MCP est le pont entre l'orchestrateur (Claude CLI) et Maestro. Il expose les outils que l'orchestrateur utilise pour lire l'etat du projet et lancer des agents.
+
+Voir [orchestrator.md](orchestrator.md) pour la liste complete des outils MCP.
+
+### Implementation
+
+Le serveur MCP utilise le protocole stdio. Quand l'orchestrateur est spawne, Maestro passe un fichier de configuration MCP qui pointe vers le serveur interne :
+
+```typescript
+// Simplifie
+class MaestroMcpServer {
+  constructor(private services: Services) {}
+
+  handleToolCall(name: string, args: unknown) {
+    switch (name) {
+      case "list_features":
+        return this.services.features.list(args);
+      case "assign_task":
+        return this.services.agents.assignTask(args);
+      case "propose_agent":
+        return this.services.proposals.create(args);
+      // ...
+    }
+  }
+}
+```
+
 ## WebSocket
 
 Un endpoint WebSocket (`/api/ws`) fournit les events temps reel.
@@ -65,6 +115,9 @@ Un endpoint WebSocket (`/api/ws`) fournit les events temps reel.
 ### Events serveur → client
 
 ```typescript
+// L'orchestrateur a change de statut
+{ type: "orchestrator.status", status: "idle" | "running" }
+
 // Un agent a change de statut
 { type: "agent.status", agentId: string, status: "idle" | "running" | "stopped" }
 
@@ -76,16 +129,19 @@ Un endpoint WebSocket (`/api/ws`) fournit les events temps reel.
 
 // Une feature a change de statut
 { type: "feature.status", featureId: string, status: string }
+
+// Nouvelle proposition d'agent par l'orchestrateur
+{ type: "proposal.new", proposal: AgentProposal }
 ```
 
 ### Events client → serveur
 
 ```typescript
-// Envoyer un message a un agent en cours d'execution
-{ type: "run.message", runId: string, message: string }
-
 // Stopper un run
 { type: "run.stop", runId: string }
+
+// Reveiller l'orchestrateur
+{ type: "orchestrator.wake" }
 ```
 
 ## Architecture interne
@@ -101,16 +157,24 @@ app/
 │   │   ├── route.ts
 │   │   └── [id]/
 │   │       ├── route.ts
-│   │       ├── wake/route.ts
 │   │       └── stop/route.ts
+│   ├── orchestrator/
+│   │   ├── status/route.ts
+│   │   ├── wake/route.ts
+│   │   └── runs/route.ts
 │   ├── runs/
 │   │   ├── route.ts
 │   │   └── [id]/
 │   │       ├── route.ts
 │   │       ├── events/route.ts
-│   │       ├── message/route.ts
 │   │       ├── stop/route.ts
 │   │       └── restart/route.ts
+│   ├── messages/route.ts
+│   ├── proposals/
+│   │   ├── route.ts
+│   │   └── [id]/
+│   │       ├── accept/route.ts
+│   │       └── reject/route.ts
 │   ├── skills/
 │   │   ├── route.ts
 │   │   └── [id]/route.ts
@@ -122,14 +186,21 @@ app/
     │   ├── feature-service.ts
     │   ├── run-service.ts
     │   ├── skill-service.ts
-    │   └── config-service.ts
+    │   ├── config-service.ts
+    │   ├── message-service.ts
+    │   └── proposal-service.ts
+    ├── orchestrator/              # Orchestrateur
+    │   ├── orchestrator-service.ts
+    │   └── orchestrator-prompt.ts
+    ├── mcp/                       # Serveur MCP interne
+    │   ├── server.ts
+    │   └── tools/
     ├── claude/                    # Interaction Claude CLI
-    │   ├── adapter.ts             # Spawn + gestion du process
-    │   ├── parser.ts              # Parse stream-json
-    │   └── worktree.ts            # Gestion des git worktrees
+    │   ├── adapter.ts
+    │   └── parser.ts
     ├── ws/                        # WebSocket
-    │   ├── server.ts              # Gestion des connexions
-    │   └── events.ts              # Dispatch des events
+    │   ├── server.ts
+    │   └── events.ts
     └── db/                        # Acces base de donnees
         ├── index.ts
         ├── schema.ts

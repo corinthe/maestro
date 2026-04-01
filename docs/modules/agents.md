@@ -2,11 +2,13 @@
 
 ## Responsabilite
 
-Gestion du cycle de vie complet des agents Claude Code : configuration, spawn des processus, isolation via git worktrees, suivi des sessions, et interventions utilisateur.
+Gestion du cycle de vie des agents worker Claude Code : configuration, spawn des processus, suivi des sessions, et controle (stop/restart).
+
+Les agents sont des **executants**. Ils ne decident pas quoi faire — c'est l'orchestrateur qui leur assigne du travail avec un prompt et du contexte.
 
 ## Concept
 
-Un **agent** est une identite persistante associee a une configuration Claude Code. Il peut etre reveille pour travailler sur une feature, execute dans un worktree isole, et maintient la continuite de ses sessions entre les runs.
+Un **agent** est une identite persistante associee a une configuration Claude Code. L'orchestrateur lui assigne des taches, et Maestro spawne Claude CLI pour les executer. Les agents travaillent directement sur le repo (pas de worktree), un a la fois, serialises par l'orchestrateur.
 
 Un agent n'est PAS un skill. Un skill est un fichier d'instructions markdown. Un agent est une entite qui utilise des skills pour accomplir du travail.
 
@@ -52,34 +54,27 @@ env:
                     │
                     ▼
               ┌──────────┐
-              │   Idle    │◄──────────────────────┐
-              └─────┬─────┘                       │
-                    │ wake / heartbeat             │
-                    ▼                              │
-              ┌──────────┐                        │
-              │ Checking  │  Verifie si du         │
-              │  Queue    │  travail est disponible│
-              └─────┬─────┘                       │
-                    │                              │
-          ┌─────────┼──────────┐                  │
-          │ rien    │ feature  │                  │
-          ▼         ▼          │                  │
-       (idle)  ┌──────────┐   │                  │
-               │ Running   │   │                  │
-               │           │   │                  │
-               │ spawn     │   │                  │
-               │ claude    │   │                  │
-               │ CLI       │   │                  │
-               └─────┬─────┘   │                  │
-                     │         │                  │
-          ┌──────────┼─────────┘                  │
-          │          │                            │
-          ▼          ▼                            │
-    ┌──────────┐ ┌──────────┐                    │
-    │Succeeded │ │  Failed  │                    │
-    └─────┬────┘ └─────┬────┘                    │
-          │            │                          │
-          └────────────┴──────────────────────────┘
+              │   Idle    │◄──────────────────┐
+              └─────┬─────┘                   │
+                    │ orchestrateur            │
+                    │ assign_task()            │
+                    ▼                          │
+              ┌──────────┐                    │
+              │ Running   │                    │
+              │           │                    │
+              │ spawn     │                    │
+              │ claude    │                    │
+              │ CLI       │                    │
+              └─────┬─────┘                    │
+                    │                          │
+          ┌─────────┼─────────┐               │
+          │         │         │               │
+          ▼         ▼         ▼               │
+    ┌──────────┐ ┌──────┐ ┌───────┐          │
+    │Succeeded │ │Failed│ │Stopped│          │
+    └─────┬────┘ └──┬───┘ └───┬───┘          │
+          │         │         │               │
+          └─────────┴─────────┴───────────────┘
                   retour a Idle
 ```
 
@@ -88,7 +83,7 @@ env:
 ### Construction de la commande
 
 ```typescript
-function buildClaudeArgs(agent: AgentConfig, run: Run): string[] {
+function buildClaudeArgs(agent: AgentConfig, task: AssignedTask): string[] {
   const args: string[] = [
     "--output-format", "stream-json",   // Sortie parsable
     "--print", "conversation",          // Affiche tout
@@ -110,12 +105,12 @@ function buildClaudeArgs(agent: AgentConfig, run: Run): string[] {
   }
 
   // Resume de session si disponible
-  if (run.sessionId) {
-    args.push("--resume", run.sessionId);
+  if (task.sessionId) {
+    args.push("--resume", task.sessionId);
   }
 
-  // Prompt
-  args.push("-p", buildPrompt(agent, run));
+  // Prompt (construit par l'orchestrateur, enrichi avec le contexte)
+  args.push("-p", task.prompt);
 
   return args;
 }
@@ -124,23 +119,20 @@ function buildClaudeArgs(agent: AgentConfig, run: Run): string[] {
 ### Execution
 
 ```typescript
-async function executeRun(agent: AgentConfig, run: Run): Promise<RunResult> {
-  // 1. Preparer le worktree
-  const worktreePath = await worktreeManager.create(run.feature.branch);
-
-  // 2. Preparer le repertoire de skills temporaire
+async function executeRun(agent: AgentConfig, task: AssignedTask): Promise<RunResult> {
+  // 1. Preparer le repertoire de skills temporaire
   const skillsDir = await prepareSkillsDir(agent.skills);
 
-  // 3. Construire la commande
-  const args = buildClaudeArgs(agent, run);
+  // 2. Construire la commande
+  const args = buildClaudeArgs(agent, task);
 
-  // 4. Spawn le processus
+  // 3. Spawn le processus (dans le repo directement, pas de worktree)
   const child = spawn("claude", args, {
-    cwd: worktreePath,
+    cwd: projectRoot,
     env: { ...process.env, ...agent.env },
   });
 
-  // 5. Parser le stream JSON ligne par ligne
+  // 4. Parser le stream JSON ligne par ligne
   child.stdout.on("data", (chunk) => {
     for (const line of chunk.toString().split("\n")) {
       const event = parseStreamEvent(line);
@@ -152,60 +144,34 @@ async function executeRun(agent: AgentConfig, run: Run): Promise<RunResult> {
     }
   });
 
-  // 6. Gerer la fin du processus
+  // 5. Gerer la fin du processus
   const exitCode = await waitForExit(child, agent.timeoutSec);
 
-  // 7. Nettoyer
+  // 6. Nettoyer
   await cleanupSkillsDir(skillsDir);
 
   return buildResult(run, exitCode);
 }
 ```
 
-## Gestion des git worktrees
+## Pas de worktrees (MVP)
 
-Chaque agent travaille dans un **worktree git isole** pour permettre la concurrence sans conflits.
+Les agents travaillent directement sur le repo. L'orchestrateur garantit qu'un seul agent travaille a la fois (serialisation sequentielle). Avantages :
 
-### Cycle de vie d'un worktree
+- **Simplicite** : pas de creation/merge/nettoyage de worktrees
+- **Pas de conflits** : un seul agent modifie les fichiers a la fois
+- **Coherence** : chaque agent voit le travail des precedents
 
-```
-Feature assignee
-       │
-       ▼
-  git worktree add .maestro/worktrees/<branch> -b <branch>
-       │
-       ▼
-  Agent travaille dans ce worktree
-       │
-       ▼
-  Run termine (succes ou echec)
-       │
-       ▼
-  Worktree conserve (pour reprise ou inspection)
-       │
-       ▼
-  Feature terminee → merge possible
-       │
-       ▼
-  git worktree remove .maestro/worktrees/<branch>
-```
+L'orchestrateur peut lancer un agent sur une branche dediee si necessaire (l'agent fait lui-meme le `git checkout -b`).
 
-### Conventions de nommage
+## Messages utilisateur entre deux runs
 
-- Branche : `maestro/<feature-slug>` (ex: `maestro/user-auth`)
-- Worktree : `.maestro/worktrees/<feature-slug>`
+L'utilisateur ne peut pas interagir avec un agent pendant qu'il tourne. Mais il peut laisser un message entre deux runs :
 
-## Intervention utilisateur
-
-L'utilisateur peut interagir avec un agent en cours d'execution :
-
-### Envoyer un message
-
-L'utilisateur tape un message dans l'UI. Ce message est injecte dans le stdin du processus Claude CLI (via `--resume` avec un nouveau prompt contenant le message de l'utilisateur).
-
-En pratique, l'approche est :
-1. Stopper le run en cours (SIGTERM)
-2. Relancer Claude CLI avec `--resume <session-id>` et le message utilisateur comme nouveau prompt
+1. L'utilisateur ecrit un message via l'UI
+2. Le message est stocke en DB (`pending_messages`)
+3. Au prochain reveil, l'orchestrateur lit les messages en attente (`get_pending_messages`)
+4. L'orchestrateur integre le message dans le prompt du prochain run de l'agent concerne
 
 ### Stopper un agent
 
@@ -213,11 +179,13 @@ En pratique, l'approche est :
 2. Attend la grace period (`graceSec`)
 3. SIGKILL si le processus ne repond pas
 4. Marque le run comme `stopped`
+5. L'orchestrateur est notifie au prochain tick
 
 ### Redemarrer un agent
 
 1. Reprend la derniere session si possible (`--resume`)
 2. Sinon, demarre une nouvelle session avec le contexte de la feature
+3. Declenche par l'orchestrateur ou par un wakeup manuel
 
 ## Gestion des sessions
 
@@ -228,12 +196,11 @@ interface AgentSession {
   agentId: string;
   featureId: string;
   sessionId: string;       // Session Claude CLI
-  worktreePath: string;
   lastRunId: string;
 }
 ```
 
-Quand un agent est reveille pour une feature sur laquelle il a deja travaille, Maestro utilise `--resume <sessionId>` pour maintenir la continuite de la conversation.
+Quand l'orchestrateur assigne une tache pour laquelle une session existe, Maestro utilise `--resume <sessionId>` pour maintenir la continuite de la conversation.
 
 Si la session n'existe plus (erreur "unknown session"), Maestro relance sans resume.
 
@@ -246,11 +213,8 @@ lib/
 │   ├── parser.ts         # Parse des events stream-json
 │   ├── args-builder.ts   # Construction des arguments CLI
 │   └── session.ts        # Gestion des sessions (resume, fallback)
-├── agents/
-│   ├── agent-service.ts  # CRUD + cycle de vie
-│   ├── agent-config.ts   # Lecture/validation des fichiers YAML
-│   └── agent-runner.ts   # Orchestration d'un run complet
-└── worktree/
-    ├── worktree-manager.ts  # Create/remove/list worktrees
-    └── branch-naming.ts     # Conventions de nommage
+└── agents/
+    ├── agent-service.ts  # CRUD + cycle de vie
+    ├── agent-config.ts   # Lecture/validation des fichiers YAML
+    └── agent-runner.ts   # Execution d'un run complet
 ```

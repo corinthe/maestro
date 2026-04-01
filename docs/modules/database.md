@@ -39,7 +39,7 @@ CREATE TABLE features (
   title         TEXT NOT NULL,
   description   TEXT,
   status        TEXT NOT NULL DEFAULT 'backlog',  -- backlog | in_progress | done | cancelled
-  agent_id      TEXT REFERENCES agents(id),       -- Agent assigne
+  agent_id      TEXT REFERENCES agents(id),       -- Agent assigne (par l'orchestrateur)
   branch        TEXT,                 -- Branche git
   priority      INTEGER DEFAULT 0,   -- Priorite (pour l'ordre dans la queue)
   created_at    TEXT NOT NULL,
@@ -49,16 +49,16 @@ CREATE TABLE features (
 
 ### Table `runs`
 
-Chaque execution d'un agent sur une feature.
+Chaque execution d'un agent ou de l'orchestrateur.
 
 ```sql
 CREATE TABLE runs (
   id            TEXT PRIMARY KEY,     -- UUID
-  agent_id      TEXT NOT NULL REFERENCES agents(id),
-  feature_id    TEXT REFERENCES features(id),
-  status        TEXT NOT NULL DEFAULT 'queued',  -- queued | running | succeeded | failed | stopped | timed_out
+  agent_id      TEXT REFERENCES agents(id),       -- NULL pour les runs orchestrateur
+  feature_id    TEXT REFERENCES features(id),      -- NULL pour les runs orchestrateur
+  run_type      TEXT NOT NULL DEFAULT 'agent',     -- 'agent' | 'orchestrator'
+  status        TEXT NOT NULL DEFAULT 'queued',    -- queued | running | succeeded | failed | stopped | timed_out
   session_id    TEXT,                 -- Session Claude CLI (pour resume)
-  worktree_path TEXT,                 -- Chemin du worktree
   prompt        TEXT,                 -- Prompt envoye a Claude
   summary       TEXT,                 -- Resume du resultat
   model         TEXT,                 -- Modele utilise
@@ -67,20 +67,25 @@ CREATE TABLE runs (
   cached_tokens INTEGER DEFAULT 0,
   cost_usd      REAL DEFAULT 0,
   exit_code     INTEGER,
+  pid           INTEGER,             -- PID du processus (pour detection orphelins)
   started_at    TEXT,
   finished_at   TEXT,
   created_at    TEXT NOT NULL
 );
+
+CREATE INDEX idx_runs_status ON runs(status);
+CREATE INDEX idx_runs_agent ON runs(agent_id);
+CREATE INDEX idx_runs_type ON runs(run_type);
 ```
 
 ### Table `run_events`
 
-Tous les events d'un run (flux stream-json de Claude).
+Tous les events d'un run (flux stream-json de Claude). **Purges apres 24h.**
 
 ```sql
 CREATE TABLE run_events (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  run_id        TEXT NOT NULL REFERENCES runs(id),
+  run_id        TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
   seq           INTEGER NOT NULL,     -- Numero de sequence dans le run
   type          TEXT NOT NULL,        -- system | assistant | user | result
   subtype       TEXT,                 -- init, text, tool_use, tool_result, thinking...
@@ -89,6 +94,7 @@ CREATE TABLE run_events (
 );
 
 CREATE INDEX idx_run_events_run_seq ON run_events(run_id, seq);
+CREATE INDEX idx_run_events_created ON run_events(created_at);
 ```
 
 ### Table `skills`
@@ -108,13 +114,68 @@ CREATE TABLE skills (
 
 ### Table `agent_skills`
 
-Relation many-to-many agents ↔ skills.
+Relation many-to-many agents <-> skills.
 
 ```sql
 CREATE TABLE agent_skills (
   agent_id      TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
   skill_id      TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
   PRIMARY KEY (agent_id, skill_id)
+);
+```
+
+### Table `sessions`
+
+Sessions Claude pour le resume (orchestrateur et agents).
+
+```sql
+CREATE TABLE sessions (
+  id            TEXT PRIMARY KEY,     -- UUID
+  owner_type    TEXT NOT NULL,        -- 'agent' | 'orchestrator'
+  agent_id      TEXT REFERENCES agents(id),
+  feature_id    TEXT REFERENCES features(id),
+  claude_session_id TEXT NOT NULL,    -- ID de session Claude CLI
+  last_run_id   TEXT REFERENCES runs(id),
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL
+);
+
+CREATE INDEX idx_sessions_agent_feature ON sessions(agent_id, feature_id);
+CREATE INDEX idx_sessions_owner ON sessions(owner_type);
+```
+
+### Table `messages`
+
+Messages de l'utilisateur en attente (lus par l'orchestrateur au prochain reveil).
+
+```sql
+CREATE TABLE messages (
+  id            TEXT PRIMARY KEY,     -- UUID
+  content       TEXT NOT NULL,        -- Contenu du message
+  target_agent  TEXT REFERENCES agents(id),  -- Agent cible (optionnel)
+  feature_id    TEXT REFERENCES features(id), -- Feature concernee (optionnel)
+  status        TEXT NOT NULL DEFAULT 'pending',  -- pending | read
+  created_at    TEXT NOT NULL,
+  read_at       TEXT
+);
+```
+
+### Table `proposals`
+
+Propositions d'agents par l'orchestrateur.
+
+```sql
+CREATE TABLE proposals (
+  id            TEXT PRIMARY KEY,     -- UUID
+  name          TEXT NOT NULL,        -- Nom propose pour l'agent
+  description   TEXT NOT NULL,
+  model         TEXT NOT NULL,
+  instructions  TEXT NOT NULL,
+  skills        TEXT,                 -- JSON array de skill names
+  rationale     TEXT NOT NULL,        -- Justification de l'orchestrateur
+  status        TEXT NOT NULL DEFAULT 'pending',  -- pending | accepted | rejected
+  created_at    TEXT NOT NULL,
+  resolved_at   TEXT
 );
 ```
 
@@ -127,25 +188,6 @@ CREATE TABLE config (
   key           TEXT PRIMARY KEY,
   value         TEXT NOT NULL
 );
-```
-
-### Table `sessions`
-
-Sessions Claude pour le resume.
-
-```sql
-CREATE TABLE sessions (
-  id            TEXT PRIMARY KEY,     -- UUID
-  agent_id      TEXT NOT NULL REFERENCES agents(id),
-  feature_id    TEXT REFERENCES features(id),
-  claude_session_id TEXT NOT NULL,    -- ID de session Claude CLI
-  worktree_path TEXT,
-  last_run_id   TEXT REFERENCES runs(id),
-  created_at    TEXT NOT NULL,
-  updated_at    TEXT NOT NULL
-);
-
-CREATE INDEX idx_sessions_agent_feature ON sessions(agent_id, feature_id);
 ```
 
 ## Migrations
@@ -164,7 +206,7 @@ lib/
 
 Les migrations sont executees automatiquement au demarrage du serveur.
 
-## Synchronisation fichiers ↔ DB
+## Synchronisation fichiers <-> DB
 
 Les agents et skills existent a la fois comme fichiers (`.maestro/agents/*.yml`, `.maestro/skills/*.md`) et en DB. La regle :
 
@@ -173,16 +215,26 @@ Les agents et skills existent a la fois comme fichiers (`.maestro/agents/*.yml`,
 - Au demarrage, Maestro synchronise les fichiers vers la DB (ajout, mise a jour, suppression)
 - Les modifications via l'UI ecrivent d'abord le fichier, puis mettent a jour la DB
 
+## Retention des donnees
+
+| Table | Retention |
+|-------|-----------|
+| `run_events` | **24 heures** — purge automatique par le heartbeat |
+| `runs` | Indefini — conserves pour historique et stats de cout |
+| `messages` | Indefini — marques comme `read` apres traitement |
+| `proposals` | Indefini — marques comme `accepted` ou `rejected` |
+| Toutes les autres | Indefini |
+
 ## Volumetrie attendue
 
-En usage solo, les volumes restent tres modestes :
+En usage solo :
 
 | Table | Volume typique |
 |-------|---------------|
 | agents | 2-5 lignes |
 | features | 10-50 lignes |
 | runs | 100-500 lignes |
-| run_events | 10k-100k lignes |
+| run_events | < 50k lignes (grace a la purge 24h) |
 | skills | 5-20 lignes |
-
-SQLite gere sans probleme ces volumes. La seule table a surveiller est `run_events` qui peut grossir rapidement. Un mecanisme de purge pourra etre ajoute si necessaire.
+| messages | < 100 lignes |
+| proposals | < 20 lignes |

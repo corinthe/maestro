@@ -53,7 +53,7 @@ Interface web principale de Maestro. Dashboard temps reel pour gerer les feature
 │  Sidebar (fixe, 240px)  │           Contenu principal        │
 │                          │                                    │
 │  ┌────────────────────┐ │                                    │
-│  │ 🎯 Maestro         │ │                                    │
+│  │ Maestro             │ │                                    │
 │  │    my-project       │ │                                    │
 │  ├────────────────────┤ │                                    │
 │  │ Dashboard           │ │                                    │
@@ -64,9 +64,10 @@ Interface web principale de Maestro. Dashboard temps reel pour gerer les feature
 │  │ Skills              │ │                                    │
 │  │ Settings            │ │                                    │
 │  ├────────────────────┤ │                                    │
-│  │ Agent status        │ │                                    │
-│  │ ● backend-dev  run  │ │                                    │
-│  │ ○ frontend-dev idle │ │                                    │
+│  │ Orchestrator  ● run │ │                                    │
+│  │ Agents:             │ │                                    │
+│  │  ● backend-dev  run │ │                                    │
+│  │  ○ frontend-dev idle│ │                                    │
 │  └────────────────────┘ │                                    │
 └──────────────────────────┴────────────────────────────────────┘
 ```
@@ -183,12 +184,15 @@ C'est la page la plus critique : le flux en direct de ce que fait l'agent.
 │  └──────────────────────────────────────────────────────┘  │
 │                                                            │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ Message to agent...                        [Send]   │  │
+│  │ Leave a message for the next run...        [Send]   │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                            │
 │  [Stop run]  [Restart]                                     │
 └────────────────────────────────────────────────────────────┘
 ```
+
+> Note : le message n'est pas injecte pendant le run. Il est stocke et transmis
+> a l'orchestrateur au prochain reveil, qui l'integre dans le prompt du run suivant.
 
 ### Page Agents (`/agents`)
 
@@ -208,6 +212,30 @@ C'est la page la plus critique : le flux en direct de ce que fait l'agent.
 │  │                           [Configure] [Wake]    │    │
 │  └─────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────┘
+```
+
+### Page Agent proposals (dans `/agents` ou notification)
+
+Quand l'orchestrateur propose un nouvel archetype d'agent, une notification apparait dans l'UI :
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  New agent proposal from orchestrator                      │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │  qa-engineer                                         │  │
+│  │  "Runs tests and validates features before           │  │
+│  │   marking them as done"                              │  │
+│  │                                                      │  │
+│  │  Rationale: Several features have been completed     │  │
+│  │  without test validation. A QA agent would catch     │  │
+│  │  regressions early.                                  │  │
+│  │                                                      │  │
+│  │  Model: claude-sonnet-4-6                            │  │
+│  │  Skills: testing-strategy                            │  │
+│  │                                        [Accept] [Reject] │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ### Page Skills (`/skills`)
@@ -251,6 +279,8 @@ app/
 │   └── page.tsx                # Gestion des skills
 ├── settings/
 │   └── page.tsx                # Configuration globale
+├── activity/
+│   └── page.tsx                # Flux d'activite global
 └── globals.css                 # Styles Tailwind + overrides
 
 components/
@@ -271,8 +301,11 @@ components/
 ├── runs/
 │   ├── run-live-view.tsx       # Composant principal du flux en direct
 │   ├── run-event.tsx           # Rendu d'un event individuel
-│   ├── run-message-input.tsx   # Zone d'envoi de message
+│   ├── run-message-input.tsx   # Zone d'envoi de message (entre runs)
 │   └── run-controls.tsx        # Boutons stop/restart
+├── orchestrator/
+│   ├── orchestrator-status.tsx # Indicateur de statut
+│   └── proposal-card.tsx       # Carte de proposition d'agent
 ├── skills/
 │   ├── skill-list.tsx
 │   └── skill-editor.tsx
