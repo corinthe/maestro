@@ -110,5 +110,15 @@ src/
 - **Phase 1 (DONE)**: CLI init/dev, CRUD features/agents, UI dashboard/features/agents, services, API routes
 - **Phase 2 (DONE)**: Spawn Claude CLI (adapter, parser, agent-runner), WebSocket server (port 4201), Live view (/runs/:id), Stop/Restart
 - **Phase 3 (DONE)**: Serveur MCP interne, orchestrateur Claude, heartbeat scheduler, wakeup manuel
+- **Phase 3.5 (A FAIRE)**: Stabilisation avant nouvelles features
+  - Recovery au demarrage: detecter les runs orphelins "running" et les marquer `failed`
+  - Mutex orchestrateur: empecher les wakeups concurrents (verrou en DB ou in-memory)
+  - Validation des inputs: schema validation sur prompts, configs agents, noms/titres
+  - Logging structure: logs sur runs, spawns, erreurs, actions orchestrateur (minimum)
+  - Tests critiques: parser Claude, agent-runner, orchestrateur, services CRUD
+  - Purge run_events: implementer la purge apres 24h (documentee mais absente)
+  - Rate limiting: limiter les appels API et les spawns d'agents concurrents
+  - Auth basique: protection des API routes (token ou reverse proxy)
+  - Dashboard connecte: remplacer les stats hardcodees par de vraies requetes DB
 - **Phase 4 (A FAIRE)**: Stop/restart agents, messages utilisateur
 - **Phase 5 (A FAIRE)**: Skills, dashboard avance, config, historique, stats, CLI avance
