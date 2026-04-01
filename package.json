@@ -1,0 +1,53 @@
+{
+  "name": "maestro",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "maestro": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "dev": "next dev --port 4200",
+    "build": "next build && tsc -p tsconfig.cli.json",
+    "start": "next start --port 4200",
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "cli": "tsx src/cli/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "better-sqlite3": "^11.8.1",
+    "commander": "^13.1.0",
+    "drizzle-orm": "^0.39.3",
+    "js-yaml": "^4.1.0",
+    "next": "15.3.1",
+    "open": "^10.1.0",
+    "picocolors": "^1.1.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "uuid": "^11.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.4",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.14.1",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.2",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.0",
+    "drizzle-kit": "^0.31.1",
+    "tailwindcss": "^4.1.4",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild",
+      "sharp"
+    ]
+  }
+}
