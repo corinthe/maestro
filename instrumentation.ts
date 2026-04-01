@@ -10,6 +10,10 @@ export async function register() {
     const { recoverOrphanRuns } = await import("@/lib/startup-recovery");
     recoverOrphanRuns();
 
+    // Seed default agents if DB is empty (first run after init)
+    const { seedDefaultAgents } = await import("@/lib/db");
+    seedDefaultAgents();
+
     const { startWsServer } = await import("@/lib/ws/server");
     const wsPort = parseInt(process.env.WS_PORT ?? "4201", 10);
     startWsServer(wsPort);

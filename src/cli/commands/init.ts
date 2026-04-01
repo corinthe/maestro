@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import pc from "picocolors";
-import { initializeDatabase } from "../../../lib/db/index.js";
+import { initializeDatabase, seedDefaultAgents } from "../../../lib/db/index.js";
 
 const DEFAULT_CONFIG = `heartbeat:
   enabled: true
@@ -88,9 +88,12 @@ export async function init(): Promise<void> {
     console.log(pc.green("Created .gitignore with .maestro/db.sqlite"));
   }
 
-  // Initialize the database
+  // Initialize the database and seed default agents
   await initializeDatabase();
   console.log(pc.green("Initialized SQLite database"));
+
+  seedDefaultAgents();
+  console.log(pc.green("Seeded default agents (developer, qa-engineer)"));
 
   console.log(pc.bold(pc.green("\n✔ Maestro initialized successfully!")));
   console.log(pc.dim("Run `maestro dev` to start the dev server."));

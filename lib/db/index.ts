@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { v4 as uuidv4 } from "uuid";
 import * as schema from "./schema";
 import path from "node:path";
 import fs from "node:fs";
@@ -163,6 +164,54 @@ export function getDb(projectRoot?: string) {
 // auto-created on first connection, so there is no separate init step.
 export function initializeDatabase(projectRoot?: string) {
   return getDb(projectRoot);
+}
+
+/**
+ * Seed default agents if the agents table is empty.
+ * Called at server startup to ensure fresh installations have agents.
+ */
+export function seedDefaultAgents() {
+  const db = getDb();
+  const existing = db.select().from(schema.agents).all();
+  if (existing.length > 0) return;
+
+  const now = new Date().toISOString();
+  const defaults = [
+    {
+      id: uuidv4(),
+      name: "developer",
+      description: "General-purpose development agent",
+      config: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        maxTurns: 30,
+        permission: "dangerously-skip",
+        instructions: "You are a software developer. Write clean, maintainable code.\nFollow the project's existing conventions and patterns.",
+        skills: [],
+      }),
+      status: "idle",
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: uuidv4(),
+      name: "qa-engineer",
+      description: "QA agent that verifies work quality",
+      config: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        maxTurns: 20,
+        permission: "dangerously-skip",
+        instructions: "You are a QA engineer. Review code changes, run tests,\nand verify that features work correctly before marking them done.",
+        skills: [],
+      }),
+      status: "idle",
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+
+  for (const agent of defaults) {
+    db.insert(schema.agents).values(agent).onConflictDoNothing().run();
+  }
 }
 
 export function closeDb() {
