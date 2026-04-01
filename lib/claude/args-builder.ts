@@ -20,6 +20,7 @@ export type RunTask = {
 export function buildClaudeArgs(config: AgentConfig, task: RunTask): string[] {
   const args: string[] = [
     "--output-format", "stream-json",
+    "--verbose",
     "--print", "conversation",
   ];
 
