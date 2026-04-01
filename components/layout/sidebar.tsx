@@ -7,6 +7,7 @@ const navItems = [
   { label: "Dashboard", href: "/" },
   { label: "Features", href: "/features" },
   { label: "Agents", href: "/agents" },
+  { label: "Runs", href: "/runs" },
 ];
 
 const bottomItems: typeof navItems = [];

@@ -7,6 +7,8 @@ out/
 
 # Build
 dist/
+lib/**/*.js
+lib/**/*.d.ts
 
 # Database
 .maestro/db.sqlite
